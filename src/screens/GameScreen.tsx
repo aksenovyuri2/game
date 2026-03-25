@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigation } from '@/app/router'
 import { useGameStore } from '@/store/gameStore'
+import { useSavesStore } from '@/store/savesStore'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { DecisionsForm } from '@/components/game/DecisionsForm'
 import { PeriodReport } from '@/components/game/PeriodReport'
@@ -19,6 +20,26 @@ const METRIC_OPTIONS: { value: ChartMetric; label: string }[] = [
   { value: 'marketShare', label: 'Доля рынка' },
   { value: 'revenue', label: 'Выручка' },
 ]
+
+function saveCurrentGame(): void {
+  const state = useGameStore.getState()
+  const snapshot = state.getSnapshot()
+  if (!snapshot) return
+
+  const player = state.companies.find((c) => c.id === state.playerCompanyId)
+  const lastResult = state.lastPeriodResult?.results.find(
+    (r) => r.companyId === state.playerCompanyId
+  )
+
+  useSavesStore.getState().saveGame({
+    playerName: player?.name ?? 'Моя компания',
+    currentPeriod: state.currentPeriod,
+    totalPeriods: snapshot.config.totalPeriods,
+    difficulty: snapshot.config.difficulty,
+    playerMPI: lastResult?.mpi ?? 0,
+    snapshot,
+  })
+}
 
 export default function GameScreen() {
   const { navigate } = useNavigation()
@@ -41,11 +62,34 @@ export default function GameScreen() {
   const player = companies.find((c) => c.id === playerCompanyId)
   const playerLastResult = lastPeriodResult?.results.find((r) => r.companyId === playerCompanyId)
 
+  const handleSubmit = useCallback(
+    (decisions: Decisions) => {
+      submitDecisions(decisions)
+      // Автосохранение после каждого периода
+      setTimeout(saveCurrentGame, 0)
+    },
+    [submitDecisions]
+  )
+
+  const handleContinue = useCallback(() => {
+    if (phase === 'game-over') {
+      navigate('results')
+    } else {
+      continueToNextPeriod()
+    }
+  }, [phase, navigate, continueToNextPeriod])
+
+  const handleEndGame = useCallback(() => {
+    useGameStore.setState({ phase: 'game-over', gameOverReason: 'completed' })
+    saveCurrentGame()
+    navigate('results')
+  }, [navigate])
+
   if (!config || !player) {
     return (
       <PageLayout>
         <div className="text-center py-20">
-          <p className="text-muted-foreground">Игра не запущена.</p>
+          <p className="text-muted-foreground text-lg">Игра не запущена.</p>
           <Button className="mt-4" onClick={() => navigate('home')}>
             На главную
           </Button>
@@ -54,37 +98,20 @@ export default function GameScreen() {
     )
   }
 
-  const handleSubmit = (decisions: Decisions) => {
-    submitDecisions(decisions)
-  }
-
-  const handleContinue = () => {
-    if (phase === 'game-over') {
-      navigate('results')
-    } else {
-      continueToNextPeriod()
-    }
-  }
-
-  const handleEndGame = () => {
-    useGameStore.setState({ phase: 'game-over', gameOverReason: 'completed' })
-    navigate('results')
-  }
-
   // --- Progress bar ---
   const progressPercent = ((currentPeriod - 1) / config.totalPeriods) * 100
 
   // --- Status bar ---
   const statusBar = (
-    <Card className="mb-5">
+    <Card className="mb-5 hover:shadow-sm">
       <CardContent className="py-4 px-5">
-        <div className="flex flex-wrap gap-5 items-center justify-between">
-          <div className="flex gap-6">
-            <div>
+        <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-between">
+          <div className="flex flex-wrap gap-4 sm:gap-6">
+            <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 Компания
               </p>
-              <p className="font-bold">{player.name}</p>
+              <p className="font-bold truncate">{player.name}</p>
             </div>
             <div>
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -124,13 +151,13 @@ export default function GameScreen() {
               </Button>
             )}
             {showEndConfirm && (
-              <div className="flex items-center gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Завершить?</span>
                 <Button variant="destructive" size="sm" onClick={handleEndGame}>
-                  Да, завершить
+                  Да
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowEndConfirm(false)}>
-                  Отмена
+                  Нет
                 </Button>
               </div>
             )}
@@ -175,7 +202,7 @@ export default function GameScreen() {
         {statusBar}
         <div className="grid lg:grid-cols-2 gap-5">
           <div>
-            <DecisionsForm onSubmit={handleSubmit} />
+            <DecisionsForm key={currentPeriod} onSubmit={handleSubmit} />
           </div>
           <div className="space-y-5">
             {lastPeriodResult && playerLastResult && (
@@ -218,7 +245,7 @@ export default function GameScreen() {
       <PageLayout title={pageTitle}>
         {statusBar}
         {isBankruptcy && (
-          <Card className="border-destructive/50 bg-destructive/5 mb-5">
+          <Card className="border-destructive/50 bg-destructive/5 mb-5 hover:shadow-sm">
             <CardContent className="py-5 text-center">
               <p className="text-2xl mb-1">💀</p>
               <p className="text-xl font-bold text-destructive">Ваша компания обанкротилась</p>

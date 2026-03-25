@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigation } from '@/app/router'
 import { useGameStore } from '@/store/gameStore'
 import { useSavesStore } from '@/store/savesStore'
@@ -18,19 +18,46 @@ export default function HomeScreen() {
   const { navigate } = useNavigation()
   const { phase, resetGame } = useGameStore()
   const { saves, loadSaves, deleteSave } = useSavesStore()
+  const [confirmNewGame, setConfirmNewGame] = useState(false)
 
   useEffect(() => {
     loadSaves()
-  }, [loadSaves])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const hasActiveGame = phase === 'deciding' || phase === 'period-result'
 
   const handleNewGame = () => {
+    if (hasActiveGame && !confirmNewGame) {
+      setConfirmNewGame(true)
+      return
+    }
+    setConfirmNewGame(false)
     resetGame()
     navigate('new-game')
   }
 
   const handleContinue = () => {
-    if (phase === 'deciding' || phase === 'period-result') {
-      navigate('game')
+    navigate('game')
+  }
+
+  const handleLoadSave = (saveId: string) => {
+    const save = useSavesStore.getState().getSave(saveId)
+    if (!save) return
+    useGameStore.getState().restoreSnapshot(save.snapshot)
+    navigate('game')
+  }
+
+  const formatDate = (iso: string): string => {
+    try {
+      return new Date(iso).toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return ''
     }
   }
 
@@ -44,9 +71,7 @@ export default function HomeScreen() {
               <span className="text-primary-foreground font-bold text-2xl">B</span>
             </div>
           </div>
-          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            BizSim
-          </h1>
+          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">BizSim</h1>
           <p className="text-xl text-muted-foreground font-medium">
             Бизнес-Симулятор: Управление и Экономика
           </p>
@@ -57,19 +82,41 @@ export default function HomeScreen() {
 
         {/* Основные кнопки */}
         <div className="flex flex-col gap-3 w-full max-w-sm">
-          <Button size="lg" className="w-full text-base h-14 rounded-xl" onClick={handleNewGame}>
-            Новая игра
-          </Button>
-          {(phase === 'deciding' || phase === 'period-result') && (
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full text-base h-14 rounded-xl"
-              onClick={handleContinue}
-            >
-              Продолжить текущую игру
+          {hasActiveGame && (
+            <Button size="lg" className="w-full text-base h-14 rounded-xl" onClick={handleContinue}>
+              Продолжить игру
             </Button>
           )}
+
+          {confirmNewGame ? (
+            <div className="flex flex-col gap-2 p-4 rounded-xl border border-destructive/30 bg-destructive/5">
+              <p className="text-sm text-center text-muted-foreground">
+                Текущая игра будет потеряна. Продолжить?
+              </p>
+              <div className="flex gap-2">
+                <Button variant="destructive" className="flex-1" onClick={handleNewGame}>
+                  Да, новая игра
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setConfirmNewGame(false)}
+                >
+                  Отмена
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              size="lg"
+              variant={hasActiveGame ? 'outline' : 'default'}
+              className="w-full text-base h-14 rounded-xl"
+              onClick={handleNewGame}
+            >
+              Новая игра
+            </Button>
+          )}
+
           <Button
             size="lg"
             variant="ghost"
@@ -86,7 +133,11 @@ export default function HomeScreen() {
             <h2 className="text-lg font-semibold mb-3">Сохранённые игры</h2>
             <div className="space-y-2">
               {saves.slice(0, 5).map((save) => (
-                <Card key={save.id} className="group">
+                <Card
+                  key={save.id}
+                  className="group cursor-pointer hover:border-primary/30"
+                  onClick={() => handleLoadSave(save.id)}
+                >
                   <CardContent className="py-3.5 px-5 flex items-center justify-between">
                     <div>
                       <p className="font-semibold">{save.playerName}</p>
@@ -95,13 +146,22 @@ export default function HomeScreen() {
                         {DIFFICULTY_LABELS[save.difficulty] ?? save.difficulty} · MPI{' '}
                         {formatMPI(save.playerMPI)}
                       </p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">
+                        {formatDate(save.savedAt)}
+                      </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        Загрузить →
+                      </span>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteSave(save.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteSave(save.id)
+                        }}
                       >
                         ✕
                       </Button>

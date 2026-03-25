@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Difficulty } from '../engine/types'
+import type { GameSnapshot } from './gameStore'
 
 const STORAGE_KEY = 'bizsim_saves'
 
@@ -11,8 +12,7 @@ export interface SavedGame {
   totalPeriods: number
   difficulty: Difficulty
   playerMPI: number
-  // Полный снапшот состояния игры (сериализуется в JSON)
-  snapshot: unknown
+  snapshot: GameSnapshot
 }
 
 interface SavesState {
@@ -53,7 +53,9 @@ export const useSavesStore = create<SavesState>((set, get) => ({
       id: `save-${Date.now()}`,
       savedAt: new Date().toISOString(),
     }
-    const updated = [newSave, ...get().saves].slice(0, 10) // максимум 10 сохранений
+    // Заменяем существующее сохранение той же игры или добавляем новое
+    const existing = get().saves.filter((s) => s.snapshot.gameSeed !== save.snapshot.gameSeed)
+    const updated = [newSave, ...existing].slice(0, 10)
     writeToStorage(updated)
     set({ saves: updated })
   },
