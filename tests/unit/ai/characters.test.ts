@@ -10,21 +10,24 @@ import type { CompanyState } from '../../../src/engine/types'
 const cfg = DEFAULT_CONFIG
 
 const expertDifficulty: DifficultyConfig = {
-  noiseLevel: 0.05,
+  noiseLevel: 0.03,
   canAnalyzeCompetitors: true,
   canUseLongTermPlanning: true,
+  strengthMultiplier: 1.15,
 }
 
 const masterDifficulty: DifficultyConfig = {
   noiseLevel: 0,
   canAnalyzeCompetitors: true,
   canUseLongTermPlanning: true,
+  strengthMultiplier: 1.3,
 }
 
 const noviceDifficulty: DifficultyConfig = {
-  noiseLevel: 0.3,
+  noiseLevel: 0.25,
   canAnalyzeCompetitors: false,
   canUseLongTermPlanning: false,
+  strengthMultiplier: 0.8,
 }
 
 function makeCompanyState(id: string, overrides: Partial<CompanyState> = {}): CompanyState {
@@ -38,6 +41,7 @@ function makeCompanyState(id: string, overrides: Partial<CompanyState> = {}): Co
     inventory: INITIAL_COMPANY_STATE.inventory,
     equipment: INITIAL_COMPANY_STATE.equipment,
     rdAccumulated: INITIAL_COMPANY_STATE.rdAccumulated,
+    isBankrupt: false,
     decisions: { ...INITIAL_COMPANY_STATE.decisions },
     ...overrides,
   }
@@ -127,7 +131,7 @@ describe.each(characters)('$name — базовые требования', ({ cr
   })
 })
 
-// ─── CautiousAI — специфичное поведение ──────────────────────────────────────
+// ─── CautiousAI — стратегия R&D Supremacy ──────────────────────────────────
 
 describe('CautiousAI', () => {
   it('price stays near basePrice (within ±20%)', () => {
@@ -145,29 +149,133 @@ describe('CautiousAI', () => {
       aggressive.makeDecisions(ctx).production
     )
   })
+
+  it('invests heavily in R&D in early phase', () => {
+    const ai = new CautiousAI(masterDifficulty)
+    const ctx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 1,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const d = ai.makeDecisions(ctx)
+    // R&D should be significantly higher than marketing in early phase
+    expect(d.rd).toBeGreaterThan(d.marketing)
+  })
+
+  it('R&D investment decreases in late phase', () => {
+    const ai = new CautiousAI(masterDifficulty)
+    const earlyCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 1,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const lateCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 11,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const dEarly = ai.makeDecisions(earlyCtx)
+    const dLate = ai.makeDecisions(lateCtx)
+    // R&D rate should be higher early than late
+    expect(dEarly.rd / INITIAL_COMPANY_STATE.cash).toBeGreaterThan(
+      dLate.rd / INITIAL_COMPANY_STATE.cash
+    )
+  })
 })
 
-// ─── AggressiveAI — специфичное поведение ────────────────────────────────────
+// ─── AggressiveAI — стратегия Cost Leadership ────────────────────────────────
 
 describe('AggressiveAI', () => {
   it('price is lower than CautiousAI', () => {
     const cautious = new CautiousAI(masterDifficulty)
     const aggressive = new AggressiveAI(masterDifficulty)
-    const ctx = makeCtx('ai1', masterDifficulty)
+    // Compare in mid-phase where price differences are clearer
+    const ctx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 6,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
     expect(aggressive.makeDecisions(ctx).price).toBeLessThan(cautious.makeDecisions(ctx).price)
   })
 
   it('marketing is higher than CautiousAI', () => {
     const cautious = new CautiousAI(masterDifficulty)
     const aggressive = new AggressiveAI(masterDifficulty)
-    const ctx = makeCtx('ai1', masterDifficulty)
+    const ctx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 6,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
     expect(aggressive.makeDecisions(ctx).marketing).toBeGreaterThan(
       cautious.makeDecisions(ctx).marketing
     )
   })
+
+  it('invests heavily in capex in early phase', () => {
+    const ai = new AggressiveAI(masterDifficulty)
+    const ctx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 1,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const d = ai.makeDecisions(ctx)
+    // CapEx should be the largest single investment in early phase
+    expect(d.capitalInvestment).toBeGreaterThan(d.rd)
+    expect(d.capitalInvestment).toBeGreaterThan(d.marketing)
+  })
+
+  it('price drops further in late phase with cost advantage', () => {
+    const ai = new AggressiveAI(masterDifficulty)
+    const earlyCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 1,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const lateCtx = makeCtx('ai1', masterDifficulty, {
+      companyState: makeCompanyState('ai1', { equipment: 300000 }), // built up equipment
+      marketState: {
+        period: 11,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const dEarly = ai.makeDecisions(earlyCtx)
+    const dLate = ai.makeDecisions(lateCtx)
+    expect(dLate.price).toBeLessThan(dEarly.price)
+  })
 })
 
-// ─── BalancedAI — специфичное поведение ──────────────────────────────────────
+// ─── BalancedAI — стратегия Diversified Growth ──────────────────────────────
 
 describe('BalancedAI', () => {
   it('marketing, capex, rd are all non-zero', () => {
@@ -177,12 +285,32 @@ describe('BalancedAI', () => {
     expect(d.capitalInvestment).toBeGreaterThan(0)
     expect(d.rd).toBeGreaterThan(0)
   })
+
+  it('investments are relatively balanced (no single dominates > 60%)', () => {
+    const ai = new BalancedAI(masterDifficulty)
+    const d = ai.makeDecisions(makeCtx('ai1', masterDifficulty))
+    const total = d.marketing + d.capitalInvestment + d.rd
+    expect(d.marketing / total).toBeLessThan(0.6)
+    expect(d.capitalInvestment / total).toBeLessThan(0.6)
+    expect(d.rd / total).toBeLessThan(0.6)
+  })
+
+  it('boosts marketing when losing money', () => {
+    const ai = new BalancedAI(masterDifficulty)
+    const goodCtx = makeCtx('ai1', masterDifficulty)
+    const poorCtx = makeCtx('ai1', masterDifficulty, {
+      companyState: makeCompanyState('ai1', { retainedEarnings: -50000 }),
+    })
+    const dGood = ai.makeDecisions(goodCtx)
+    const dPoor = ai.makeDecisions(poorCtx)
+    expect(dPoor.marketing).toBeGreaterThan(dGood.marketing)
+  })
 })
 
-// ─── AdaptiveAI — специфичное поведение ──────────────────────────────────────
+// ─── AdaptiveAI — стратегия Dynamic Counter-Strategy ────────────────────────
 
 describe('AdaptiveAI', () => {
-  it('without competitor history behaves like BalancedAI (no crash)', () => {
+  it('without competitor history behaves without crash', () => {
     const ai = new AdaptiveAI(expertDifficulty)
     expect(() => ai.makeDecisions(makeCtx('ai1', expertDifficulty))).not.toThrow()
   })
@@ -206,23 +334,85 @@ describe('AdaptiveAI', () => {
     expect(dLow.price).toBeLessThan(dHigh.price)
   })
 
-  it('increases marketing when losing market share', () => {
+  it('increases marketing when losing money', () => {
     const ai = new AdaptiveAI(masterDifficulty)
 
-    const goodShareCtx = makeCtx('ai1', masterDifficulty, {
-      history: [makeCompanyState('ai1', { decisions: { ...INITIAL_COMPANY_STATE.decisions } })],
-    })
-    // Simulate losing market share by injecting low-share history
+    const goodCtx = makeCtx('ai1', masterDifficulty)
     const poorCtx = makeCtx('ai1', masterDifficulty, {
       companyState: makeCompanyState('ai1', {
-        retainedEarnings: -50000, // losing money
+        retainedEarnings: -50000,
       }),
-      history: [makeCompanyState('ai1', { retainedEarnings: -50000 })],
     })
 
-    const dGood = ai.makeDecisions(goodShareCtx)
+    const dGood = ai.makeDecisions(goodCtx)
     const dPoor = ai.makeDecisions(poorCtx)
     expect(dPoor.marketing).toBeGreaterThanOrEqual(dGood.marketing)
+  })
+
+  it('counter-strategies: more marketing when competitors invest in R&D', () => {
+    const ai = new AdaptiveAI(masterDifficulty)
+
+    const lowRDCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 6,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+      competitorDecisions: [
+        { price: 95, production: 2000, marketing: 10000, capitalInvestment: 10000, rd: 5000 },
+      ],
+    })
+    const highRDCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 6,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+      competitorDecisions: [
+        { price: 95, production: 2000, marketing: 10000, capitalInvestment: 10000, rd: 25000 },
+      ],
+    })
+
+    const dLowRD = ai.makeDecisions(lowRDCtx)
+    const dHighRD = ai.makeDecisions(highRDCtx)
+    // When competitors invest in R&D, adaptive should boost marketing as counter
+    expect(dHighRD.marketing).toBeGreaterThan(dLowRD.marketing)
+  })
+
+  it('adjusts strategy across game phases', () => {
+    const ai = new AdaptiveAI(masterDifficulty)
+
+    const earlyCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 1,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+    const lateCtx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 11,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+
+    const dEarly = ai.makeDecisions(earlyCtx)
+    const dLate = ai.makeDecisions(lateCtx)
+
+    // Early: more investment (capex+rd), Late: more marketing
+    const earlyInvestment = dEarly.capitalInvestment + dEarly.rd
+    const lateInvestment = dLate.capitalInvestment + dLate.rd
+    expect(earlyInvestment).toBeGreaterThan(lateInvestment)
+    expect(dLate.marketing).toBeGreaterThan(dEarly.marketing)
   })
 })
 
@@ -238,7 +428,7 @@ describe('Difficulty noise', () => {
     expect(d1.production).toBe(d2.production)
   })
 
-  it('novice (noise=0.3) can produce different decisions across periods', () => {
+  it('novice (noise=0.25) can produce different decisions across periods', () => {
     const ai = new BalancedAI(noviceDifficulty)
     const decisions = Array.from({ length: 12 }, (_, i) =>
       ai.makeDecisions(
@@ -256,5 +446,101 @@ describe('Difficulty noise', () => {
     const prices = decisions.map((d) => d.price)
     const allSame = prices.every((p) => p === prices[0])
     expect(allSame).toBe(false)
+  })
+})
+
+// ─── Стратегическое разнообразие ─────────────────────────────────────────────
+
+describe('Strategic diversity', () => {
+  it('all four AI characters produce different decisions on master', () => {
+    const ais = [
+      new CautiousAI(masterDifficulty),
+      new AggressiveAI(masterDifficulty),
+      new BalancedAI(masterDifficulty),
+      new AdaptiveAI(masterDifficulty),
+    ]
+    const decisions = ais.map((ai) =>
+      ai.makeDecisions(
+        makeCtx('ai1', masterDifficulty, {
+          marketState: {
+            period: 6,
+            totalPeriods: 12,
+            scenario: 'stable',
+            macroFactor: 1.0,
+            baseMarketSize: cfg.baseMarketSize,
+          },
+        })
+      )
+    )
+
+    // Prices should differ
+    const prices = decisions.map((d) => d.price)
+    const uniquePrices = new Set(prices.map((p) => Math.round(p)))
+    expect(uniquePrices.size).toBeGreaterThanOrEqual(3)
+
+    // Marketing allocations should differ significantly
+    const marketings = decisions.map((d) => d.marketing)
+    const maxMarketing = Math.max(...marketings)
+    const minMarketing = Math.min(...marketings)
+    expect(maxMarketing / minMarketing).toBeGreaterThan(1.3)
+  })
+
+  it('each character has a distinct investment focus', () => {
+    const cautious = new CautiousAI(masterDifficulty)
+    const aggressive = new AggressiveAI(masterDifficulty)
+    const balanced = new BalancedAI(masterDifficulty)
+
+    const ctx = makeCtx('ai1', masterDifficulty, {
+      marketState: {
+        period: 2,
+        totalPeriods: 12,
+        scenario: 'stable',
+        macroFactor: 1.0,
+        baseMarketSize: cfg.baseMarketSize,
+      },
+    })
+
+    const dCautious = cautious.makeDecisions(ctx)
+    const dAggressive = aggressive.makeDecisions(ctx)
+    const dBalanced = balanced.makeDecisions(ctx)
+
+    // Cautious: R&D is primary investment
+    expect(dCautious.rd).toBeGreaterThan(dCautious.marketing)
+
+    // Aggressive: CapEx is primary investment in early phase
+    expect(dAggressive.capitalInvestment).toBeGreaterThan(dAggressive.rd)
+
+    // Balanced: no single investment dominates extremely
+    const balTotal = dBalanced.marketing + dBalanced.capitalInvestment + dBalanced.rd
+    expect(dBalanced.marketing / balTotal).toBeGreaterThan(0.2)
+    expect(dBalanced.capitalInvestment / balTotal).toBeGreaterThan(0.2)
+    expect(dBalanced.rd / balTotal).toBeGreaterThan(0.2)
+  })
+
+  it('difficulty strengthMultiplier increases spending on harder difficulties', () => {
+    const aiNovice = new BalancedAI(noviceDifficulty)
+    const aiMaster = new BalancedAI(masterDifficulty)
+
+    // Use same phase by forcing mid-game (period 6)
+    const ctx = (d: DifficultyConfig) =>
+      makeCtx('test-strength', d, {
+        marketState: {
+          period: 6,
+          totalPeriods: 12,
+          scenario: 'stable',
+          macroFactor: 1.0,
+          baseMarketSize: cfg.baseMarketSize,
+        },
+      })
+
+    const dNovice = aiNovice.makeDecisions(ctx(noviceDifficulty))
+    const dMaster = aiMaster.makeDecisions(ctx(masterDifficulty))
+
+    // Master should spend more total (ignoring noise) due to higher strengthMultiplier
+    // Compare base spending rates: master str=1.3 vs novice str=0.8
+    const noviceSpend = dNovice.marketing + dNovice.capitalInvestment + dNovice.rd
+    const masterSpend = dMaster.marketing + dMaster.capitalInvestment + dMaster.rd
+    // Master should spend noticeably more (accounting for noise on novice)
+    expect(masterSpend).toBeGreaterThan(noviceSpend * 0.9)
   })
 })

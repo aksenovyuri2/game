@@ -32,6 +32,22 @@ describe('getDifficultyConfig', () => {
       expect(noises[i]).toBeGreaterThanOrEqual(noises[i + 1]!)
     }
   })
+
+  it('strengthMultiplier increases with difficulty', () => {
+    const levels: Difficulty[] = ['novice', 'medium', 'expert', 'master']
+    const strengths = levels.map((d) => getDifficultyConfig(d).strengthMultiplier)
+    for (let i = 0; i < strengths.length - 1; i++) {
+      expect(strengths[i]).toBeLessThanOrEqual(strengths[i + 1]!)
+    }
+  })
+
+  it('medium has canUseLongTermPlanning enabled', () => {
+    expect(getDifficultyConfig('medium').canUseLongTermPlanning).toBe(true)
+  })
+
+  it('novice has canUseLongTermPlanning disabled', () => {
+    expect(getDifficultyConfig('novice').canUseLongTermPlanning).toBe(false)
+  })
 })
 
 // ─── createAIPlayer ──────────────────────────────────────────────────────────
@@ -52,7 +68,6 @@ describe('createAIPlayer', () => {
   })
 
   it('adaptive on novice falls back to BalancedAI behavior (no crash)', () => {
-    // adaptive character not available on novice — should still work
     expect(() => createAIPlayer('adaptive', 'novice')).not.toThrow()
   })
 })
@@ -73,10 +88,17 @@ describe('assignAICharacters', () => {
     })
   })
 
+  it('expert includes all four character types with enough AIs', () => {
+    const chars = assignAICharacters(4, 'expert', 42)
+    const unique = new Set(chars)
+    // With guaranteed diversity, 4 AIs on expert should have all 4 types
+    expect(unique.size).toBe(4)
+  })
+
   it('expert can include adaptive character', () => {
-    // Run many times to ensure adaptive appears eventually
-    const allChars = Array.from({ length: 20 }, (_, i) => assignAICharacters(4, 'expert', i)).flat()
-    expect(allChars).toContain('adaptive')
+    // With guaranteed diversity for count >= available.length
+    const chars = assignAICharacters(4, 'expert', 42)
+    expect(chars).toContain('adaptive')
   })
 
   it('is deterministic for same seed', () => {
