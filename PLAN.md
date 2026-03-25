@@ -1,75 +1,151 @@
-# PLAN.md — Этап 1: Инициализация проекта
+# PLAN.md — BizSim
 
-## Статус: ВЫПОЛНЕН
+---
 
-## Что сделано
+## Этап 1: Инициализация проекта — ВЫПОЛНЕН
 
-### 1. Vite + React + TypeScript
+Vite + React + TS, Tailwind v4, shadcn/ui, ESLint, Vitest, Playwright, Husky.
 
-- Проект создан на Vite с шаблоном `react-ts`
-- TypeScript в strict mode, алиас `@/` → `src/`
-- `tsconfig.json` + `tsconfig.node.json`
+---
 
-### 2. UI-фреймворк
+## Этап 2: Simulation Engine — В РАБОТЕ
 
-- **Tailwind CSS v4** через `@tailwindcss/vite` плагин
-- **shadcn/ui** — компоненты Button, Card, Input созданы вручную
-- CSS-переменные для тем (light/dark ready)
-- Утилита `cn()` из `clsx` + `tailwind-merge`
-- **Lucide React** — библиотека иконок
+### Цель
 
-### 3. Состояние и данные
+Реализовать экономическое ядро симуляции: расчёт спроса, рыночной доли,
+себестоимости, финансовых результатов и MPI. Покрытие тестами ≥ 90%.
 
-- **Zustand** — менеджер состояния
-- **Recharts** — графики и диаграммы
-- **Dexie.js** — обёртка для IndexedDB (сохранения)
+### Файлы
 
-### 4. Структура папок
+| Файл                                   | Содержание                         |
+| -------------------------------------- | ---------------------------------- |
+| `src/engine/types.ts`                  | Все интерфейсы модели              |
+| `src/engine/market.ts`                 | Расчёт спроса и доли рынка         |
+| `src/engine/costs.ts`                  | Себестоимость, амортизация, запасы |
+| `src/engine/mpi.ts`                    | Расчёт MPI по 6 факторам           |
+| `src/engine/simulation.ts`             | Оркестрация одного периода         |
+| `tests/unit/engine/market.test.ts`     | Тесты рынка                        |
+| `tests/unit/engine/costs.test.ts`      | Тесты затрат                       |
+| `tests/unit/engine/mpi.test.ts`        | Тесты MPI                          |
+| `tests/unit/engine/simulation.test.ts` | Интеграционные тесты периода       |
+
+### Модель: параметры и формулы
+
+#### Константы (GameConfig)
 
 ```
-src/
-├── app/               # Точка входа, роутинг
-├── components/
-│   ├── ui/            # shadcn/ui (Button, Card, Input)
-│   ├── game/          # Игровые компоненты
-│   ├── charts/        # Графики
-│   └── layout/        # Шапка, навигация
-├── engine/            # Simulation Engine
-├── ai/                # ИИ-оппоненты
-├── store/             # Zustand-сторы
-├── screens/           # Экраны (страницы)
-├── lib/               # Утилиты (cn, helpers)
-└── types/             # Глобальные типы
-tests/
-├── unit/engine/
-├── unit/ai/
-└── e2e/
+BASE_MARKET_SIZE      = 10 000 единиц/период (на всех игроков)
+BASE_PRICE            = 100 УДЕ
+BASE_VARIABLE_COST    = 60 УДЕ/ед
+FIXED_COSTS           = 50 000 УДЕ/период
+DEPRECIATION_RATE     = 0.15 (15%/период)
+STORAGE_COST_PER_UNIT = 2 УДЕ/ед/период
+TAX_RATE              = 0.20 (20%)
+PRICE_ELASTICITY      = 1.5
+MARKETING_ALPHA       = 0.3
+RD_BETA               = 0.2
 ```
 
-### 5. Инструменты разработки
+#### Начальное состояние компании
 
-- **ESLint** + `@typescript-eslint` — запрет `any`
-- **Prettier** — единый стиль кода
-- **Vitest** — юнит-тесты (jsdom)
-- **Playwright** — E2E-тесты
-- **Husky + lint-staged** — pre-commit хуки
+```
+cash               = 200 000
+inventory          = 0
+equipment          = 100 000
+rdAccumulated      = 0
+retainedEarnings   = 0
+```
 
-### 6. Скрипты
+#### Расчёт спроса (market.ts)
 
-| Команда              | Описание                |
-| -------------------- | ----------------------- |
-| `npm run dev`        | Dev-сервер (Vite)       |
-| `npm run build`      | Продакшен-сборка        |
-| `npm run test`       | Юнит-тесты (Vitest)     |
-| `npm run test:watch` | Тесты в watch-режиме    |
-| `npm run test:e2e`   | E2E-тесты (Playwright)  |
-| `npm run lint`       | Линтинг ESLint          |
-| `npm run format`     | Форматирование Prettier |
+1. **Базовый спрос компании i:**
 
-## Следующий этап
+   ```
+   priceScore[i]     = (BASE_PRICE / price[i]) ^ PRICE_ELASTICITY
+   marketingScore[i] = 1 + MARKETING_ALPHA * sqrt(marketing[i] / 10_000)
+   rdScore[i]        = 1 + RD_BETA * sqrt(rdAccumulated[i] / 50_000)
+   competScore[i]    = priceScore[i] * marketingScore[i] * rdScore[i]
+   ```
 
-**Этап 2 — Simulation Engine (ядро экономики)**
+2. **Рыночная доля:**
 
-- Определить интерфейсы в `src/engine/types.ts`
-- Написать тесты для расчёта спроса, себестоимости, MPI
-- Реализовать ядро симуляции: `simulation.ts`, `market.ts`, `costs.ts`, `mpi.ts`
+   ```
+   share[i] = competScore[i] / sum(competScore)
+   ```
+
+3. **Макроэкономический коэффициент** (по сценарию):
+
+   ```
+   stable:  macro = 1.0
+   growing: macro = 1.0 + 0.03 * period  (рост 3%/период)
+   crisis:  macro = 1.0 - 0.05 * period  (спад 5%/период, min 0.4)
+   random:  macro = случайное ±15%
+   ```
+
+4. **Продажи и запасы:**
+   ```
+   demandForCompany[i] = BASE_MARKET_SIZE * macro * share[i]
+   unitsSold[i]        = min(demandForCompany[i], inventory[i] + produced[i])
+   endInventory[i]     = inventory[i] + produced[i] - unitsSold[i]
+   ```
+
+#### Расчёт затрат (costs.ts)
+
+```
+variableCostPerUnit[i] = BASE_VARIABLE_COST / (1 + equipment[i] / 500_000)
+newEquipment[i]        = equipment[i] * (1 - DEPRECIATION_RATE) + capitalInvestment[i]
+depreciation[i]        = equipment[i] * DEPRECIATION_RATE
+storageCost[i]         = endInventory[i] * STORAGE_COST_PER_UNIT
+productionCost[i]      = variableCostPerUnit[i] * produced[i] + FIXED_COSTS
+```
+
+#### Финансы (simulation.ts)
+
+```
+revenue[i]       = price[i] * unitsSold[i]
+cogs[i]          = variableCostPerUnit * unitsSold[i]  (только реализованная часть)
+grossProfit[i]   = revenue[i] - cogs[i]
+ebit[i]          = grossProfit[i] - FIXED_COSTS - marketing[i] - rd[i] - depreciation[i] - storageCost[i]
+tax[i]           = max(0, ebit[i] * TAX_RATE)
+netProfit[i]     = ebit[i] - tax[i]
+newCash[i]       = cash[i] + netProfit[i] - capitalInvestment[i]
+newRetained[i]   = retainedEarnings[i] + netProfit[i]
+```
+
+R&D накопление: `newRdAccumulated[i] = rdAccumulated[i] * 0.9 + rd[i]` (10% устаревание)
+
+#### MPI (mpi.ts)
+
+6 факторов, каждый нормализован в [0, 100], веса в сумме = 1:
+
+| Фактор           | Вес  | Формула                                                 |
+| ---------------- | ---- | ------------------------------------------------------- |
+| retainedEarnings | 0.35 | `clamp(retainedEarnings / 500_000 * 100, 0, 100)`       |
+| demandPotential  | 0.15 | `clamp(marketingScore * rdScore * 50, 0, 100)`          |
+| supplyPotential  | 0.15 | `clamp(equipment / 200_000 * 100, 0, 100)`              |
+| productivity     | 0.15 | `clamp(revenue / (revenue + totalCosts) * 200, 0, 100)` |
+| marketShare      | 0.10 | `marketShare * 100` (уже в долях → %)                   |
+| growth           | 0.10 | `clamp(50 + (netProfit / 50_000) * 50, 0, 100)`         |
+
+```
+MPI = sum(factor[i] * weight[i])
+```
+
+### Краевые случаи
+
+- `price = 0` → запрещено (минимум 1)
+- `produced < 0` → запрещено
+- `cash < 0` → компания технически банкрот, но игра продолжается
+- `endInventory < 0` → невозможно (clamp к 0)
+- `macro * demand < 0` → clamp к 0
+- Деление на 0 при `sum(competScore) = 0` → равные доли
+
+---
+
+## Следующие этапы
+
+- **Этап 3:** ИИ-оппоненты (4 характера, 4 уровня) — Plan → Tests → Code
+- **Этап 4:** UI экраны (v0.dev → интеграция)
+- **Этап 5:** Сохранение, онбординг, справка
+- **Этап 6:** E2E-тесты, балансировка ИИ
+- **Этап 7:** Полировка, релиз
