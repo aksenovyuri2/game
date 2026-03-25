@@ -1,4 +1,5 @@
 import { NavigationProvider, useNavigation } from '@/app/router'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import HomeScreen from '@/screens/HomeScreen'
 import NewGameScreen from '@/screens/NewGameScreen'
 import GameScreen from '@/screens/GameScreen'
@@ -26,8 +27,10 @@ function AppScreens() {
 
 export default function App() {
   return (
-    <NavigationProvider>
-      <AppScreens />
-    </NavigationProvider>
+    <ErrorBoundary>
+      <NavigationProvider>
+        <AppScreens />
+      </NavigationProvider>
+    </ErrorBoundary>
   )
 }

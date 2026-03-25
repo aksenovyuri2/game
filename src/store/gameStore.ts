@@ -28,6 +28,19 @@ export interface NewGameParams {
   aiCount: number
 }
 
+/** Снапшот для сохранения/загрузки */
+export interface GameSnapshot {
+  config: GameConfig
+  companies: CompanyState[]
+  playerCompanyId: string
+  currentPeriod: number
+  phase: GamePhase
+  gameOverReason: GameOverReason
+  periodHistory: SimulationPeriodResult[]
+  lastPeriodResult: SimulationPeriodResult | null
+  gameSeed: number
+}
+
 interface GameState {
   config: GameConfig | null
   companies: CompanyState[]
@@ -44,6 +57,8 @@ interface GameState {
   continueToNextPeriod: () => void
   resetGame: () => void
   setPlayerDecisions: (decisions: Partial<Decisions>) => void
+  getSnapshot: () => GameSnapshot | null
+  restoreSnapshot: (snapshot: GameSnapshot) => void
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -108,16 +123,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       c.id === playerCompanyId ? { ...c, decisions: playerDecisions } : c
     )
 
-    // AI принимает решения
+    // AI принимает решения (пропускаем банкротов)
     const withAIDecisions = updatedCompanies.map((c) => {
-      if (c.isHuman || !c.aiCharacter) return c
+      if (c.isHuman || !c.aiCharacter || c.isBankrupt) return c
       const ai = createAIPlayer(c.aiCharacter, config.difficulty)
       const competitorDecisions = prevPeriodResult
         ? prevPeriodResult.results
             .filter((r) => r.companyId !== c.id)
             .map((r) => {
               const prevCompany = prevPeriodResult.updatedCompanyStates.find(
-                (s) => s.id !== r.companyId
+                (s) => s.id === r.companyId
               )
               return prevCompany?.decisions ?? INITIAL_COMPANY_STATE.decisions
             })
@@ -180,6 +195,46 @@ export const useGameStore = create<GameState>((set, get) => ({
       companies: companies.map((c) =>
         c.id === playerCompanyId ? { ...c, decisions: { ...c.decisions, ...partial } } : c
       ),
+    })
+  },
+
+  getSnapshot: () => {
+    const {
+      config,
+      companies,
+      playerCompanyId,
+      currentPeriod,
+      phase,
+      gameOverReason,
+      periodHistory,
+      lastPeriodResult,
+      gameSeed,
+    } = get()
+    if (!config || !playerCompanyId) return null
+    return {
+      config,
+      companies,
+      playerCompanyId,
+      currentPeriod,
+      phase,
+      gameOverReason,
+      periodHistory,
+      lastPeriodResult,
+      gameSeed,
+    }
+  },
+
+  restoreSnapshot: (snapshot) => {
+    set({
+      config: snapshot.config,
+      companies: snapshot.companies,
+      playerCompanyId: snapshot.playerCompanyId,
+      currentPeriod: snapshot.currentPeriod,
+      phase: snapshot.phase,
+      gameOverReason: snapshot.gameOverReason,
+      periodHistory: snapshot.periodHistory,
+      lastPeriodResult: snapshot.lastPeriodResult,
+      gameSeed: snapshot.gameSeed,
     })
   },
 }))

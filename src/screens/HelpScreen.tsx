@@ -63,7 +63,7 @@ export default function HelpScreen() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">О игре</CardTitle>
+            <CardTitle className="text-base">Об игре</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm leading-relaxed">

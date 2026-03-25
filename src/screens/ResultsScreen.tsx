@@ -18,6 +18,7 @@ const METRIC_OPTIONS: { value: ChartMetric; label: string }[] = [
 ]
 
 function getWinner(last: SimulationPeriodResult) {
+  if (last.results.length === 0) return undefined
   return [...last.results].sort((a, b) => b.mpi - a.mpi)[0]
 }
 

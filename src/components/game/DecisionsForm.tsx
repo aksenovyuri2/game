@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatMoney } from '@/lib/format'
 import type { Decisions } from '@/engine/types'
+import { calcVariableCostPerUnit } from '@/engine/costs'
 
 interface FieldConfig {
   key: keyof Decisions
@@ -76,6 +77,7 @@ interface DecisionsFormProps {
 export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
   const companies = useGameStore((s) => s.companies)
   const playerCompanyId = useGameStore((s) => s.playerCompanyId)
+  const config = useGameStore((s) => s.config)
   const player = companies.find((c) => c.id === playerCompanyId)
 
   const [decisions, setDecisions] = useState<Decisions>(
@@ -87,16 +89,27 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
       rd: 5000,
     }
   )
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!player) return null
+  if (!player || !config) return null
 
-  const totalSpend = decisions.marketing + decisions.capitalInvestment + decisions.rd
-  const cashAfter = player.cash - totalSpend
+  // Расчёт полных расходов включая производство
+  const variableCost = calcVariableCostPerUnit(player.equipment, config)
+  const productionCost = decisions.production * variableCost
+  const directSpend = decisions.marketing + decisions.capitalInvestment + decisions.rd
+  const totalEstimatedCost = directSpend + productionCost
+  const cashAfter = player.cash - directSpend - decisions.capitalInvestment
   const isOverBudget = cashAfter < 0
-  const budgetUsedPercent = Math.min(100, (totalSpend / player.cash) * 100)
+  const budgetUsedPercent = player.cash > 0 ? Math.min(100, (directSpend / player.cash) * 100) : 100
 
   const set = (key: keyof Decisions, value: number) =>
     setDecisions((prev) => ({ ...prev, [key]: value }))
+
+  const handleSubmit = () => {
+    if (isSubmitting || isOverBudget) return
+    setIsSubmitting(true)
+    onSubmit(decisions)
+  }
 
   return (
     <Card>
@@ -124,6 +137,14 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
               style={{ width: `${Math.min(100, budgetUsedPercent)}%` }}
             />
           </div>
+          {/* Оценка затрат на производство */}
+          <p className="text-xs text-muted-foreground">
+            Оценка затрат на производство: ~{formatMoney(productionCost)} УДЕ (
+            {formatMoney(variableCost)}/шт. × {decisions.production})
+          </p>
+          {totalEstimatedCost > player.cash * 0.9 && (
+            <p className="text-xs text-warning font-medium">Высокие расходы — следите за кассой!</p>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -132,7 +153,10 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
           return (
             <div key={f.key} className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium flex items-center gap-1.5">
+                <label
+                  htmlFor={`field-${f.key}`}
+                  className="text-sm font-medium flex items-center gap-1.5"
+                >
                   <span>{f.icon}</span>
                   {f.label}
                 </label>
@@ -141,6 +165,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
                 </span>
               </div>
               <input
+                id={`field-${f.key}`}
                 type="range"
                 min={f.min}
                 max={f.max}
@@ -161,10 +186,14 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
         <Button
           className="w-full mt-2 h-12 text-base rounded-xl"
           size="lg"
-          onClick={() => onSubmit(decisions)}
-          disabled={isOverBudget}
+          onClick={handleSubmit}
+          disabled={isOverBudget || isSubmitting}
         >
-          {isOverBudget ? 'Недостаточно средств' : 'Завершить период →'}
+          {isSubmitting
+            ? 'Расчёт...'
+            : isOverBudget
+              ? 'Недостаточно средств'
+              : 'Завершить период →'}
         </Button>
       </CardContent>
     </Card>
