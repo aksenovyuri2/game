@@ -142,9 +142,108 @@ MPI = sum(factor[i] * weight[i])
 
 ---
 
+---
+
+## Этап 3: ИИ-оппоненты — В РАБОТЕ
+
+### Цель
+
+Реализовать 4 характера ИИ × 4 уровня сложности. Каждый ИИ принимает
+решения на период исходя из состояния рынка и своей компании.
+
+### Файлы
+
+| Файл                      | Содержание                                     |
+| ------------------------- | ---------------------------------------------- |
+| `src/ai/types.ts`         | Типы AI: контекст, конфиг сложности            |
+| `src/ai/base.ts`          | Абстрактный `BaseAI`, утилита шума             |
+| `src/ai/cautious.ts`      | `CautiousAI` — осторожная стратегия            |
+| `src/ai/aggressive.ts`    | `AggressiveAI` — агрессивная стратегия         |
+| `src/ai/balanced.ts`      | `BalancedAI` — сбалансированная стратегия      |
+| `src/ai/adaptive.ts`      | `AdaptiveAI` — адаптируется к конкурентам      |
+| `src/ai/difficulty.ts`    | Конфигурация 4 уровней сложности               |
+| `src/ai/factory.ts`       | Фабрика: создаёт нужный ИИ по типу и сложности |
+| `tests/unit/ai/*.test.ts` | Тесты для каждого модуля                       |
+
+### Архитектура
+
+```typescript
+interface AIDecisionContext {
+  companyState: CompanyState
+  marketState: MarketState
+  cfg: GameConfig
+  competitorDecisions?: Decisions[] // предыдущий период
+  history?: CompanyState[] // история своей компании
+}
+
+abstract class BaseAI {
+  abstract makeDecisions(ctx: AIDecisionContext): Decisions
+  protected applyNoise(d: Decisions, level: number, seed: number): Decisions
+  protected clampDecisions(d: Decisions, state: CompanyState): Decisions
+}
+```
+
+### Поведение характеров
+
+#### CautiousAI
+
+- Цена: рядом с `basePrice` ±5%, не демпингует
+- Производство: `demand_estimate * 0.85` (с запасом под склад)
+- Маркетинг: 8–12% от выручки
+- CapEx: поддерживает оборудование (= амортизации)
+- R&D: минимальный (2–3% от выручки)
+
+#### AggressiveAI
+
+- Цена: на 10–15% ниже средней по рынку (или `basePrice`)
+- Производство: завышенное, `demand_estimate * 1.2`
+- Маркетинг: 20–25% от выручки (максимальный)
+- CapEx: агрессивный (10–15% от выручки)
+- R&D: минимальный
+
+#### BalancedAI
+
+- Цена: `basePrice * 0.95` (чуть ниже базы)
+- Производство: `demand_estimate * 1.0`
+- Маркетинг, CapEx, R&D: равномерно по 10% от выручки каждый
+
+#### AdaptiveAI _(только Expert/Master)_
+
+- Анализирует решения конкурентов за прошлый период
+- Если конкурент снизил цену → тоже снижает на 5%
+- Если теряет долю рынка → увеличивает маркетинг на 20%
+- Если растёт → сохраняет стратегию
+
+### Уровни сложности (noiseLevel)
+
+| Уровень | Шум  | Доступные характеры            | Анализ конкурентов |
+| ------- | ---- | ------------------------------ | ------------------ |
+| novice  | ±30% | cautious, balanced             | нет                |
+| medium  | ±15% | cautious, aggressive, balanced | нет                |
+| expert  | ±5%  | все 4                          | да                 |
+| master  | 0%   | все 4                          | да (глубокий)      |
+
+### Шум — детерминированный PRNG
+
+```
+seed = hash(companyId + period)
+noise = sin(seed) * noiseLevel  →  решение ± noise * решение
+```
+
+Решения после шума клэмпятся к допустимым диапазонам.
+
+### Краевые случаи
+
+- Цена всегда ≥ 1 УДЕ
+- Производство ≥ 0
+- Все расходы (marketing, capex, rd) ≥ 0
+- Расходы не превышают `cash * 0.8` (не разорять компанию за 1 период)
+- AdaptiveAI без истории ведёт себя как BalancedAI
+
+---
+
 ## Следующие этапы
 
-- **Этап 3:** ИИ-оппоненты (4 характера, 4 уровня) — Plan → Tests → Code
 - **Этап 4:** UI экраны (v0.dev → интеграция)
 - **Этап 5:** Сохранение, онбординг, справка
 - **Этап 6:** E2E-тесты, балансировка ИИ
