@@ -23,7 +23,8 @@ function getWinner(last: SimulationPeriodResult) {
 
 export default function ResultsScreen() {
   const { navigate } = useNavigation()
-  const { companies, playerCompanyId, periodHistory, config, resetGame } = useGameStore()
+  const { companies, playerCompanyId, periodHistory, config, gameOverReason, resetGame } =
+    useGameStore()
   const [chartMetric, setChartMetric] = useState<ChartMetric>('mpi')
 
   const last = periodHistory[periodHistory.length - 1]
@@ -56,12 +57,32 @@ export default function ResultsScreen() {
   return (
     <PageLayout title="Итоги игры">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Победитель */}
-        <Card className={playerWon ? 'border-primary bg-primary/5' : ''}>
+        {/* Победитель / Банкротство */}
+        <Card
+          className={
+            gameOverReason === 'bankruptcy'
+              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
+              : playerWon
+                ? 'border-primary bg-primary/5'
+                : ''
+          }
+        >
           <CardContent className="py-6 text-center">
-            <div className="text-4xl mb-2">{playerWon ? '🏆' : playerRank <= 3 ? '🥈' : '📊'}</div>
+            <div className="text-4xl mb-2">
+              {gameOverReason === 'bankruptcy'
+                ? '💀'
+                : playerWon
+                  ? '🏆'
+                  : playerRank <= 3
+                    ? '🥈'
+                    : '📊'}
+            </div>
             <h1 className="text-2xl font-bold">
-              {playerWon ? 'Победа!' : `Место ${playerRank} из ${sortedResults.length}`}
+              {gameOverReason === 'bankruptcy'
+                ? 'Банкротство'
+                : playerWon
+                  ? 'Победа!'
+                  : `Место ${playerRank} из ${sortedResults.length}`}
             </h1>
             {player && playerResult && (
               <p className="text-muted-foreground mt-1">

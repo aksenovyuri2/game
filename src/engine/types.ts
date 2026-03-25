@@ -29,6 +29,9 @@ export interface CompanyState {
   equipment: number // Стоимость оборудования (УДЕ)
   rdAccumulated: number // Накопленный R&D-актив (УДЕ)
 
+  // Банкротство
+  isBankrupt: boolean
+
   // Решения текущего периода
   decisions: Decisions
 }
@@ -138,6 +141,7 @@ export const INITIAL_COMPANY_STATE = {
   inventory: 0,
   equipment: 100000,
   rdAccumulated: 0,
+  isBankrupt: false,
   decisions: {
     price: 100,
     production: 1000,

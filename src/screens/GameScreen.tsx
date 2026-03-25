@@ -28,6 +28,7 @@ export default function GameScreen() {
     playerCompanyId,
     currentPeriod,
     phase,
+    gameOverReason,
     periodHistory,
     lastPeriodResult,
     submitDecisions,
@@ -150,9 +151,25 @@ export default function GameScreen() {
   // --- Фаза просмотра результатов ---
   if (phase === 'period-result' || phase === 'game-over') {
     const isOver = phase === 'game-over'
+    const isBankruptcy = gameOverReason === 'bankruptcy'
+    const pageTitle = isBankruptcy
+      ? 'Банкротство!'
+      : isOver
+        ? 'Игра завершена!'
+        : `Результаты периода ${currentPeriod}`
     return (
-      <PageLayout title={isOver ? 'Игра завершена!' : `Результаты периода ${currentPeriod}`}>
+      <PageLayout title={pageTitle}>
         {statusBar}
+        {isBankruptcy && (
+          <Card className="border-red-500 bg-red-50 dark:bg-red-950/20">
+            <CardContent className="py-4 text-center">
+              <p className="text-xl font-bold text-red-600">Ваша компания обанкротилась</p>
+              <p className="text-sm text-red-500 mt-1">
+                Денежные средства исчерпаны. Компания не может продолжать деятельность.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         {lastPeriodResult && (
           <div className="space-y-4">
             <div className="grid lg:grid-cols-2 gap-4">
