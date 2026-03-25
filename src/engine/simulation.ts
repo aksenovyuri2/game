@@ -32,6 +32,7 @@ export function createInitialCompanyState(params: InitialCompanyParams): Company
     inventory: INITIAL_COMPANY_STATE.inventory,
     equipment: INITIAL_COMPANY_STATE.equipment,
     rdAccumulated: INITIAL_COMPANY_STATE.rdAccumulated,
+    isBankrupt: INITIAL_COMPANY_STATE.isBankrupt,
     decisions: { ...INITIAL_COMPANY_STATE.decisions },
   }
 }
@@ -46,18 +47,55 @@ export function runPeriod(
   market: MarketState,
   cfg: GameConfig
 ): SimulationPeriodResult {
-  const decisions = companies.map((c) => c.decisions)
-  const rdAccumulated = companies.map((c) => c.rdAccumulated)
+  // Определяем активных (не банкротов) и банкротов
+  const activeIndices = companies.map((c, i) => (!c.isBankrupt ? i : -1)).filter((i) => i >= 0)
+  const activeDecisions = activeIndices.map((i) => companies[i]!.decisions)
+  const activeRdAccumulated = activeIndices.map((i) => companies[i]!.rdAccumulated)
 
-  // 1. Рыночная доля
-  const scores = calcCompetitiveScores(decisions, rdAccumulated, cfg)
-  const shares = calcMarketShares(scores)
+  // 1. Рыночная доля (только для активных компаний)
+  const activeScores = calcCompetitiveScores(activeDecisions, activeRdAccumulated, cfg)
+  const activeShares = calcMarketShares(activeScores)
 
-  // 2. Спрос для каждой компании
-  const demands = calcDemandForCompanies(shares, market.macroFactor, cfg)
+  // 2. Спрос для активных компаний
+  const activeDemands = calcDemandForCompanies(activeShares, market.macroFactor, cfg)
+
+  // Маппинг: для каждой компании её доля и спрос (банкроты = 0)
+  const shares = companies.map(() => 0)
+  const demands = companies.map(() => 0)
+  activeIndices.forEach((companyIdx, activeIdx) => {
+    shares[companyIdx] = activeShares[activeIdx] ?? 0
+    demands[companyIdx] = activeDemands[activeIdx] ?? 0
+  })
 
   // 3. Расчёт результатов для каждой компании
   const results: PeriodResult[] = companies.map((company, i) => {
+    // Банкроты — нулевые результаты, состояние не меняется
+    if (company.isBankrupt) {
+      return {
+        companyId: company.id,
+        unitsSold: 0,
+        endInventory: company.inventory,
+        marketShare: 0,
+        revenue: 0,
+        cogs: 0,
+        grossProfit: 0,
+        fixedCosts: 0,
+        marketingExpense: 0,
+        rdExpense: 0,
+        depreciation: 0,
+        storageCost: 0,
+        ebit: 0,
+        tax: 0,
+        netProfit: 0,
+        newCash: company.cash,
+        newEquipment: company.equipment,
+        newRdAccumulated: company.rdAccumulated,
+        newRetainedEarnings: company.retainedEarnings,
+        mpi: 0,
+        variableCostPerUnit: 0,
+      }
+    }
+
     const { decisions: d } = company
     const share = shares[i] ?? 0
     const demand = demands[i] ?? 0
@@ -124,16 +162,24 @@ export function runPeriod(
     return { ...partialResult, mpi }
   })
 
-  // 4. Обновлённые состояния компаний
+  // 4. Обновлённые состояния компаний (с определением банкротства)
   const updatedCompanyStates: CompanyState[] = companies.map((company, i) => {
     const result = results[i]!
+
+    // Банкрот остаётся банкротом
+    if (company.isBankrupt) {
+      return { ...company }
+    }
+
+    const newCash = result.newCash
     return {
       ...company,
-      cash: result.newCash,
+      cash: newCash,
       retainedEarnings: result.newRetainedEarnings,
       inventory: result.endInventory,
       equipment: result.newEquipment,
       rdAccumulated: result.newRdAccumulated,
+      isBankrupt: newCash <= 0,
     }
   })
 

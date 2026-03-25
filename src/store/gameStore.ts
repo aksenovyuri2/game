@@ -16,6 +16,7 @@ import {
 } from '../engine/types'
 
 export type GamePhase = 'idle' | 'deciding' | 'period-result' | 'game-over'
+export type GameOverReason = 'completed' | 'bankruptcy' | null
 
 const AI_NAMES = ['Прогресс', 'Восток', 'Меридиан', 'Альфа', 'Гарант', 'Вектор', 'Горизонт']
 
@@ -33,6 +34,7 @@ interface GameState {
   playerCompanyId: string | null
   currentPeriod: number
   phase: GamePhase
+  gameOverReason: GameOverReason
   periodHistory: SimulationPeriodResult[]
   lastPeriodResult: SimulationPeriodResult | null
   gameSeed: number
@@ -50,6 +52,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerCompanyId: null,
   currentPeriod: 1,
   phase: 'idle',
+  gameOverReason: null,
   periodHistory: [],
   lastPeriodResult: null,
   gameSeed: 1,
@@ -87,6 +90,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerCompanyId,
       currentPeriod: 1,
       phase: 'deciding',
+      gameOverReason: null,
       periodHistory: [],
       lastPeriodResult: null,
       gameSeed: seed,
@@ -134,11 +138,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const market = buildMarketState(config, currentPeriod, gameSeed)
     const result = runPeriod(withAIDecisions, market, config)
 
+    // Проверяем банкротство игрока
+    const playerState = result.updatedCompanyStates.find((c) => c.id === playerCompanyId)
+    const playerBankrupt = playerState?.isBankrupt === true
+
     set({
       companies: result.updatedCompanyStates,
       periodHistory: [...periodHistory, result],
       lastPeriodResult: result,
-      phase: 'period-result',
+      phase: playerBankrupt ? 'game-over' : 'period-result',
+      gameOverReason: playerBankrupt ? 'bankruptcy' : null,
     })
   },
 
@@ -147,7 +156,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!config) return
     const next = currentPeriod + 1
     if (next > config.totalPeriods) {
-      set({ phase: 'game-over' })
+      set({ phase: 'game-over', gameOverReason: 'completed' })
     } else {
       set({ currentPeriod: next, phase: 'deciding' })
     }
@@ -160,6 +169,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerCompanyId: null,
       currentPeriod: 1,
       phase: 'idle',
+      gameOverReason: null,
       periodHistory: [],
       lastPeriodResult: null,
     }),
