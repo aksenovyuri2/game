@@ -248,3 +248,11 @@ noise = sin(seed) * noiseLevel  →  решение ± noise * решение
 - **Этап 5:** Сохранение, онбординг, справка
 - **Этап 6:** E2E-тесты, балансировка ИИ
 - **Этап 7:** Полировка, релиз
+
+---
+
+## Этап 4: UI — экраны и компоненты — В РАБОТЕ
+
+Навигация: простой контекст (home | new-game | game | results | help).
+Gameloop в Zustand: initGame → deciding → submitDecisions → period-result → continueToNextPeriod → deciding/game-over.
+Стек: shadcn/ui + Tailwind + Recharts.
