@@ -1,12 +1,33 @@
-function App() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-foreground">BizSim</h1>
-        <p className="text-muted-foreground text-lg">Бизнес-Симулятор: Управление и Экономика</p>
-      </div>
-    </div>
-  )
+import { NavigationProvider, useNavigation } from '@/app/router'
+import HomeScreen from '@/screens/HomeScreen'
+import NewGameScreen from '@/screens/NewGameScreen'
+import GameScreen from '@/screens/GameScreen'
+import ResultsScreen from '@/screens/ResultsScreen'
+import HelpScreen from '@/screens/HelpScreen'
+
+function AppScreens() {
+  const { screen } = useNavigation()
+
+  switch (screen) {
+    case 'home':
+      return <HomeScreen />
+    case 'new-game':
+      return <NewGameScreen />
+    case 'game':
+      return <GameScreen />
+    case 'results':
+      return <ResultsScreen />
+    case 'help':
+      return <HelpScreen />
+    default:
+      return <HomeScreen />
+  }
 }
 
-export default App
+export default function App() {
+  return (
+    <NavigationProvider>
+      <AppScreens />
+    </NavigationProvider>
+  )
+}
