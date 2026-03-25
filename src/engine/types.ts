@@ -107,6 +107,46 @@ export interface GameConfig {
   rdDecayRate: number
 }
 
+// ─── Система событий ─────────────────────────────────────────────────────────
+
+/** Категория события */
+export type EventCategory = 'economy' | 'technology' | 'social' | 'regulation' | 'industry'
+
+/** Эффекты события на экономическую модель */
+export interface EventEffects {
+  demandMultiplier: number // Множитель общего спроса (1.0 = без изменений)
+  priceElasticityMod: number // Аддитивная коррекция ценовой эластичности
+  marketingAlphaMod: number // Аддитивная коррекция эффективности маркетинга
+  rdBetaMod: number // Аддитивная коррекция эффективности R&D
+  variableCostMult: number // Множитель переменных затрат
+  fixedCostMult: number // Множитель постоянных затрат
+  storageCostMult: number // Множитель складских расходов
+}
+
+/** Определение события (шаблон) */
+export interface MarketEventDef {
+  id: string
+  category: EventCategory
+  title: string // Краткий заголовок
+  description: string // Новость для игрока (подсказка для решения)
+  effects: Partial<EventEffects>
+  minDuration: number // Минимальная длительность в периодах
+  maxDuration: number // Максимальная длительность в периодах
+}
+
+/** Активное событие в игре */
+export interface ActiveEvent {
+  eventId: string
+  title: string
+  description: string
+  effects: Partial<EventEffects>
+  remainingPeriods: number
+  startPeriod: number
+}
+
+/** Суммарные эффекты всех активных событий */
+export type CombinedEffects = EventEffects
+
 /** Начальные параметры новой компании */
 export interface InitialCompanyParams {
   id: string

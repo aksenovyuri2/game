@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { runPeriod, createInitialCompanyState } from '../engine/simulation'
 import { calcMacroFactor } from '../engine/market'
+import { combineEventEffects, generateNewEvents, tickEvents } from '../engine/events'
 import { createAIPlayer, assignAICharacters } from '../ai/difficulty'
 import {
   DEFAULT_CONFIG,
   INITIAL_COMPANY_STATE,
+  type ActiveEvent,
   type AICharacter,
   type CompanyState,
   type Decisions,
@@ -39,6 +41,8 @@ export interface GameSnapshot {
   periodHistory: SimulationPeriodResult[]
   lastPeriodResult: SimulationPeriodResult | null
   gameSeed: number
+  activeEvents: ActiveEvent[]
+  eventHistory: ActiveEvent[][]
 }
 
 interface GameState {
@@ -51,6 +55,13 @@ interface GameState {
   periodHistory: SimulationPeriodResult[]
   lastPeriodResult: SimulationPeriodResult | null
   gameSeed: number
+
+  /** Активные события текущего периода */
+  activeEvents: ActiveEvent[]
+  /** Новые события, появившиеся в этом периоде (для отображения новостей) */
+  newEventsThisPeriod: ActiveEvent[]
+  /** История событий по периодам */
+  eventHistory: ActiveEvent[][]
 
   initGame: (params: NewGameParams) => void
   submitDecisions: (decisions: Decisions) => void
@@ -71,6 +82,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   periodHistory: [],
   lastPeriodResult: null,
   gameSeed: 1,
+  activeEvents: [],
+  newEventsThisPeriod: [],
+  eventHistory: [],
 
   initGame: (params) => {
     const seed = Date.now() % 10000
@@ -99,6 +113,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       }),
     }))
 
+    // Генерируем начальные события для первого периода
+    const initialEvents = generateNewEvents([], seed, 1)
+
     set({
       config,
       companies: [player, ...aiCompanies],
@@ -109,11 +126,22 @@ export const useGameStore = create<GameState>((set, get) => ({
       periodHistory: [],
       lastPeriodResult: null,
       gameSeed: seed,
+      activeEvents: initialEvents,
+      newEventsThisPeriod: initialEvents,
+      eventHistory: [initialEvents],
     })
   },
 
   submitDecisions: (playerDecisions) => {
-    const { config, companies, playerCompanyId, currentPeriod, periodHistory, gameSeed } = get()
+    const {
+      config,
+      companies,
+      playerCompanyId,
+      currentPeriod,
+      periodHistory,
+      gameSeed,
+      activeEvents,
+    } = get()
     if (!config || !playerCompanyId) return
 
     const prevPeriodResult = periodHistory[periodHistory.length - 1]
@@ -150,8 +178,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { ...c, decisions: aiDecisions }
     })
 
+    // Комбинируем эффекты событий
+    const combinedEffects = combineEventEffects(activeEvents)
+
     const market = buildMarketState(config, currentPeriod, gameSeed)
-    const result = runPeriod(withAIDecisions, market, config)
+    const result = runPeriod(withAIDecisions, market, config, combinedEffects)
 
     // Проверяем банкротство игрока
     const playerState = result.updatedCompanyStates.find((c) => c.id === playerCompanyId)
@@ -167,13 +198,26 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   continueToNextPeriod: () => {
-    const { currentPeriod, config } = get()
+    const { currentPeriod, config, activeEvents, gameSeed, eventHistory } = get()
     if (!config) return
     const next = currentPeriod + 1
     if (next > config.totalPeriods) {
       set({ phase: 'game-over', gameOverReason: 'completed' })
     } else {
-      set({ currentPeriod: next, phase: 'deciding' })
+      // Тикаем события: уменьшаем оставшееся время, удаляем истёкшие
+      const remainingEvents = tickEvents(activeEvents)
+
+      // Генерируем новые события для следующего периода
+      const newEvents = generateNewEvents(remainingEvents, gameSeed, next)
+      const allActiveEvents = [...remainingEvents, ...newEvents]
+
+      set({
+        currentPeriod: next,
+        phase: 'deciding',
+        activeEvents: allActiveEvents,
+        newEventsThisPeriod: newEvents,
+        eventHistory: [...eventHistory, allActiveEvents],
+      })
     }
   },
 
@@ -187,6 +231,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameOverReason: null,
       periodHistory: [],
       lastPeriodResult: null,
+      activeEvents: [],
+      newEventsThisPeriod: [],
+      eventHistory: [],
     }),
 
   setPlayerDecisions: (partial) => {
@@ -209,6 +256,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       periodHistory,
       lastPeriodResult,
       gameSeed,
+      activeEvents,
+      eventHistory,
     } = get()
     if (!config || !playerCompanyId) return null
     return {
@@ -221,6 +270,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       periodHistory,
       lastPeriodResult,
       gameSeed,
+      activeEvents,
+      eventHistory,
     }
   },
 
@@ -235,6 +286,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       periodHistory: snapshot.periodHistory,
       lastPeriodResult: snapshot.lastPeriodResult,
       gameSeed: snapshot.gameSeed,
+      activeEvents: snapshot.activeEvents ?? [],
+      newEventsThisPeriod: [],
+      eventHistory: snapshot.eventHistory ?? [],
     })
   },
 }))
