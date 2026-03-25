@@ -36,6 +36,7 @@ export default function GameScreen() {
   } = useGameStore()
 
   const [chartMetric, setChartMetric] = useState<ChartMetric>('mpi')
+  const [showEndConfirm, setShowEndConfirm] = useState(false)
 
   const player = companies.find((c) => c.id === playerCompanyId)
   const playerLastResult = lastPeriodResult?.results.find((r) => r.companyId === playerCompanyId)
@@ -65,39 +66,106 @@ export default function GameScreen() {
     }
   }
 
-  // --- Шапка с текущим состоянием ---
+  const handleEndGame = () => {
+    useGameStore.setState({ phase: 'game-over', gameOverReason: 'completed' })
+    navigate('results')
+  }
+
+  // --- Progress bar ---
+  const progressPercent = ((currentPeriod - 1) / config.totalPeriods) * 100
+
+  // --- Status bar ---
   const statusBar = (
-    <Card className="mb-4">
-      <CardContent className="py-3 px-4">
-        <div className="flex flex-wrap gap-4 items-center justify-between">
+    <Card className="mb-5">
+      <CardContent className="py-4 px-5">
+        <div className="flex flex-wrap gap-5 items-center justify-between">
           <div className="flex gap-6">
             <div>
-              <p className="text-xs text-muted-foreground">Компания</p>
-              <p className="font-semibold">{player.name}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Компания
+              </p>
+              <p className="font-bold">{player.name}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Период</p>
-              <p className="font-semibold">
-                {currentPeriod} / {config.totalPeriods}
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Период
+              </p>
+              <p className="font-bold">
+                {currentPeriod}{' '}
+                <span className="text-muted-foreground font-normal">/ {config.totalPeriods}</span>
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Касса</p>
-              <p className="font-semibold">{formatMoney(player.cash)} УДЕ</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Касса
+              </p>
+              <p className={`font-bold ${player.cash <= 0 ? 'text-destructive' : ''}`}>
+                {formatMoney(player.cash)} УДЕ
+              </p>
             </div>
             {playerLastResult && (
               <div>
-                <p className="text-xs text-muted-foreground">MPI</p>
-                <p className="font-semibold">{formatMPI(playerLastResult.mpi)}</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  MPI
+                </p>
+                <p className="font-bold text-primary">{formatMPI(playerLastResult.mpi)}</p>
               </div>
             )}
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('home')}>
-            ← Меню
-          </Button>
+          <div className="flex items-center gap-2">
+            {phase === 'deciding' && !showEndConfirm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => setShowEndConfirm(true)}
+              >
+                Закончить игру
+              </Button>
+            )}
+            {showEndConfirm && (
+              <div className="flex items-center gap-2 animate-in fade-in">
+                <span className="text-xs text-muted-foreground">Завершить?</span>
+                <Button variant="destructive" size="sm" onClick={handleEndGame}>
+                  Да, завершить
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowEndConfirm(false)}>
+                  Отмена
+                </Button>
+              </div>
+            )}
+            {!showEndConfirm && (
+              <Button variant="ghost" size="sm" onClick={() => navigate('home')}>
+                ← Меню
+              </Button>
+            )}
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
       </CardContent>
     </Card>
+  )
+
+  // --- Metric selector ---
+  const metricSelector = (
+    <div className="flex gap-2 flex-wrap">
+      {METRIC_OPTIONS.map((m) => (
+        <Button
+          key={m.value}
+          size="sm"
+          variant={chartMetric === m.value ? 'default' : 'outline'}
+          onClick={() => setChartMetric(m.value)}
+        >
+          {m.label}
+        </Button>
+      ))}
+    </div>
   )
 
   // --- Фаза принятия решений ---
@@ -105,11 +173,11 @@ export default function GameScreen() {
     return (
       <PageLayout title={`Период ${currentPeriod}`}>
         {statusBar}
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-5">
           <div>
             <DecisionsForm onSubmit={handleSubmit} />
           </div>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {lastPeriodResult && playerLastResult && (
               <PeriodReport result={playerLastResult} companyName={player.name} />
             )}
@@ -124,18 +192,7 @@ export default function GameScreen() {
         </div>
         {periodHistory.length > 0 && (
           <div className="mt-6 space-y-4">
-            <div className="flex gap-2 flex-wrap">
-              {METRIC_OPTIONS.map((m) => (
-                <Button
-                  key={m.value}
-                  size="sm"
-                  variant={chartMetric === m.value ? 'default' : 'outline'}
-                  onClick={() => setChartMetric(m.value)}
-                >
-                  {m.label}
-                </Button>
-              ))}
-            </div>
+            {metricSelector}
             <HistoryChart
               history={periodHistory}
               companies={companies}
@@ -161,28 +218,29 @@ export default function GameScreen() {
       <PageLayout title={pageTitle}>
         {statusBar}
         {isBankruptcy && (
-          <Card className="border-red-500 bg-red-50 dark:bg-red-950/20">
-            <CardContent className="py-4 text-center">
-              <p className="text-xl font-bold text-red-600">Ваша компания обанкротилась</p>
-              <p className="text-sm text-red-500 mt-1">
+          <Card className="border-destructive/50 bg-destructive/5 mb-5">
+            <CardContent className="py-5 text-center">
+              <p className="text-2xl mb-1">💀</p>
+              <p className="text-xl font-bold text-destructive">Ваша компания обанкротилась</p>
+              <p className="text-sm text-muted-foreground mt-1">
                 Денежные средства исчерпаны. Компания не может продолжать деятельность.
               </p>
             </CardContent>
           </Card>
         )}
         {lastPeriodResult && (
-          <div className="space-y-4">
-            <div className="grid lg:grid-cols-2 gap-4">
+          <div className="space-y-5">
+            <div className="grid lg:grid-cols-2 gap-5">
               {playerLastResult && (
                 <PeriodReport result={playerLastResult} companyName={player.name} />
               )}
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <RatingTable
                   results={lastPeriodResult.results}
                   companies={companies}
                   playerCompanyId={playerCompanyId}
                 />
-                <Button size="lg" className="w-full" onClick={handleContinue}>
+                <Button size="lg" className="w-full h-12 rounded-xl" onClick={handleContinue}>
                   {isOver
                     ? '📊 Итоги игры →'
                     : `Следующий период (${currentPeriod + 1}/${config.totalPeriods}) →`}
@@ -190,18 +248,7 @@ export default function GameScreen() {
               </div>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
-              {METRIC_OPTIONS.map((m) => (
-                <Button
-                  key={m.value}
-                  size="sm"
-                  variant={chartMetric === m.value ? 'default' : 'outline'}
-                  onClick={() => setChartMetric(m.value)}
-                >
-                  {m.label}
-                </Button>
-              ))}
-            </div>
+            {metricSelector}
             <HistoryChart
               history={periodHistory}
               companies={companies}

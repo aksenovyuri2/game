@@ -25,7 +25,7 @@ const METRIC_LABELS: Record<string, string> = {
   revenue: 'Выручка (УДЕ)',
 }
 
-const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2']
+const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
 
 function formatValue(metric: string, value: number): string {
   if (metric === 'marketShare') return `${(value * 100).toFixed(1)}%`
@@ -49,12 +49,15 @@ export function HistoryChart({ history, companies, playerCompanyId, metric }: Hi
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{METRIC_LABELS[metric]}</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">
+          <span className="size-2 rounded-full bg-chart-1" />
+          {METRIC_LABELS[metric]}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
             <XAxis dataKey="period" tick={{ fontSize: 12 }} />
             <YAxis
               tick={{ fontSize: 11 }}
@@ -64,6 +67,11 @@ export function HistoryChart({ history, companies, playerCompanyId, metric }: Hi
             <Tooltip
               formatter={(value) => formatValue(metric, value as number)}
               labelStyle={{ fontWeight: 600 }}
+              contentStyle={{
+                borderRadius: '0.75rem',
+                border: '1px solid hsl(220 13% 91%)',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              }}
             />
             <Legend />
             {companies.map((c, i) => (
@@ -73,8 +81,9 @@ export function HistoryChart({ history, companies, playerCompanyId, metric }: Hi
                 dataKey={c.name}
                 stroke={COLORS[i % COLORS.length]}
                 strokeWidth={c.id === playerCompanyId ? 3 : 1.5}
-                dot={c.id === playerCompanyId}
-                strokeDasharray={c.id === playerCompanyId ? undefined : '4 2'}
+                dot={c.id === playerCompanyId ? { r: 4 } : false}
+                strokeDasharray={c.id === playerCompanyId ? undefined : '6 3'}
+                activeDot={{ r: 6 }}
               />
             ))}
           </LineChart>

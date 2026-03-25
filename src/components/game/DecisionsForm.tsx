@@ -13,53 +13,59 @@ interface FieldConfig {
   max: number
   step: number
   unit: string
+  icon: string
 }
 
 const FIELDS: FieldConfig[] = [
   {
     key: 'price',
     label: 'Цена продукции',
-    hint: 'Влияет на спрос (ниже цена — выше спрос)',
+    hint: 'Ниже цена — выше спрос',
     min: 30,
     max: 300,
     step: 1,
     unit: 'УДЕ',
+    icon: '💰',
   },
   {
     key: 'production',
     label: 'Объём производства',
-    hint: 'Непроданные единицы хранятся на складе',
+    hint: 'Непроданное хранится на складе',
     min: 0,
     max: 4000,
     step: 50,
     unit: 'шт.',
+    icon: '🏭',
   },
   {
     key: 'marketing',
     label: 'Маркетинг',
-    hint: 'Увеличивает спрос с убывающей отдачей',
+    hint: 'Убывающая отдача',
     min: 0,
     max: 100000,
     step: 1000,
     unit: 'УДЕ',
+    icon: '📢',
   },
   {
     key: 'capitalInvestment',
     label: 'Капитальные инвестиции',
-    hint: 'Снижают себестоимость, амортизируются 15%/период',
+    hint: 'Снижают себестоимость',
     min: 0,
     max: 100000,
     step: 1000,
     unit: 'УДЕ',
+    icon: '🔧',
   },
   {
     key: 'rd',
     label: 'НИОКР (R&D)',
-    hint: 'Накапливаются, повышают качество и спрос',
+    hint: 'Накапливаются, повышают качество',
     min: 0,
     max: 50000,
     step: 500,
     unit: 'УДЕ',
+    icon: '🔬',
   },
 ]
 
@@ -87,6 +93,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
   const totalSpend = decisions.marketing + decisions.capitalInvestment + decisions.rd
   const cashAfter = player.cash - totalSpend
   const isOverBudget = cashAfter < 0
+  const budgetUsedPercent = Math.min(100, (totalSpend / player.cash) * 100)
 
   const set = (key: keyof Decisions, value: number) =>
     setDecisions((prev) => ({ ...prev, [key]: value }))
@@ -95,21 +102,41 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Решения на период</CardTitle>
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>Касса: {formatMoney(player.cash)} УДЕ</span>
-          <span className={isOverBudget ? 'text-red-600 font-medium' : ''}>
-            После расходов: {formatMoney(cashAfter)} УДЕ
-          </span>
+        <div className="space-y-2 mt-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Касса: {formatMoney(player.cash)} УДЕ</span>
+            <span
+              className={`font-semibold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}
+            >
+              Остаток: {formatMoney(cashAfter)} УДЕ
+            </span>
+          </div>
+          {/* Budget progress bar */}
+          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                isOverBudget
+                  ? 'bg-destructive'
+                  : budgetUsedPercent > 70
+                    ? 'bg-warning'
+                    : 'bg-primary'
+              }`}
+              style={{ width: `${Math.min(100, budgetUsedPercent)}%` }}
+            />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         {FIELDS.map((f) => {
           const val = decisions[f.key]
           return (
-            <div key={f.key} className="space-y-1">
-              <div className="flex justify-between items-baseline">
-                <label className="text-sm font-medium">{f.label}</label>
-                <span className="text-sm font-mono text-primary">
+            <div key={f.key} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <span>{f.icon}</span>
+                  {f.label}
+                </label>
+                <span className="text-sm font-bold font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                   {f.key === 'production' ? `${val} ${f.unit}` : `${formatMoney(val)} ${f.unit}`}
                 </span>
               </div>
@@ -120,11 +147,11 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
                 step={f.step}
                 value={val}
                 onChange={(e) => set(f.key, +e.target.value)}
-                className="w-full accent-primary"
+                className="w-full"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{f.min}</span>
-                <span className="italic">{f.hint}</span>
+                <span>{f.hint}</span>
                 <span>{f.key === 'production' ? f.max : formatMoney(f.max)}</span>
               </div>
             </div>
@@ -132,7 +159,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
         })}
 
         <Button
-          className="w-full mt-2"
+          className="w-full mt-2 h-12 text-base rounded-xl"
           size="lg"
           onClick={() => onSubmit(decisions)}
           disabled={isOverBudget}
