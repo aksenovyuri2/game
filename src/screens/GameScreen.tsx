@@ -1,12 +1,14 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigation } from '@/app/router'
 import { useGameStore } from '@/store/gameStore'
 import { useSavesStore } from '@/store/savesStore'
+import { useOnboardingStore } from '@/store/onboardingStore'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { DecisionsForm } from '@/components/game/DecisionsForm'
 import { PeriodReport } from '@/components/game/PeriodReport'
 import { RatingTable } from '@/components/game/RatingTable'
 import { HistoryChart } from '@/components/charts/HistoryChart'
+import { BubbleTip } from '@/components/ui/bubble-tip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatMoney, formatMPI } from '@/lib/format'
@@ -20,6 +22,8 @@ const METRIC_OPTIONS: { value: ChartMetric; label: string }[] = [
   { value: 'marketShare', label: 'Доля рынка' },
   { value: 'revenue', label: 'Выручка' },
 ]
+
+const TOTAL_ONBOARDING_STEPS = 5
 
 function saveCurrentGame(): void {
   const state = useGameStore.getState()
@@ -56,16 +60,32 @@ export default function GameScreen() {
     continueToNextPeriod,
   } = useGameStore()
 
+  const showTip = useOnboardingStore((s) => s.show)
+  const isDismissed = useOnboardingStore((s) => s.isDismissed)
+
   const [chartMetric, setChartMetric] = useState<ChartMetric>('mpi')
   const [showEndConfirm, setShowEndConfirm] = useState(false)
 
   const player = companies.find((c) => c.id === playerCompanyId)
   const playerLastResult = lastPeriodResult?.results.find((r) => r.companyId === playerCompanyId)
 
+  // Онбординг: запуск подсказок на первом периоде
+  useEffect(() => {
+    if (phase === 'deciding' && currentPeriod === 1 && !isDismissed('welcome')) {
+      const timer = setTimeout(() => showTip('welcome'), 500)
+      return () => clearTimeout(timer)
+    }
+    if (phase === 'period-result' && currentPeriod === 1 && !isDismissed('period-result')) {
+      const timer = setTimeout(() => showTip('period-result'), 400)
+      return () => clearTimeout(timer)
+    }
+    return undefined
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, currentPeriod])
+
   const handleSubmit = useCallback(
     (decisions: Decisions) => {
       submitDecisions(decisions)
-      // Автосохранение после каждого периода
       setTimeout(saveCurrentGame, 0)
     },
     [submitDecisions]
@@ -98,88 +118,94 @@ export default function GameScreen() {
     )
   }
 
-  // --- Progress bar ---
   const progressPercent = ((currentPeriod - 1) / config.totalPeriods) * 100
 
-  // --- Status bar ---
+  // --- Status bar with onboarding tip ---
   const statusBar = (
-    <Card className="mb-5 hover:shadow-sm">
-      <CardContent className="py-4 px-5">
-        <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-between">
-          <div className="flex flex-wrap gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Компания
-              </p>
-              <p className="font-bold truncate">{player.name}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Период
-              </p>
-              <p className="font-bold">
-                {currentPeriod}{' '}
-                <span className="text-muted-foreground font-normal">/ {config.totalPeriods}</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Касса
-              </p>
-              <p className={`font-bold ${player.cash <= 0 ? 'text-destructive' : ''}`}>
-                {formatMoney(player.cash)} УДЕ
-              </p>
-            </div>
-            {playerLastResult && (
+    <BubbleTip
+      id="status-bar"
+      arrow="bottom"
+      content="Здесь ваши ключевые показатели: касса, текущий период и MPI — индекс эффективности управления."
+      step={2}
+      totalSteps={TOTAL_ONBOARDING_STEPS}
+      onNext={() => showTip('decisions-form')}
+    >
+      <Card className="mb-5 hover:shadow-sm">
+        <CardContent className="py-4 px-5">
+          <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-between">
+            <div className="flex flex-wrap gap-4 sm:gap-6">
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Компания
+                </p>
+                <p className="font-bold truncate">{player.name}</p>
+              </div>
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  MPI
+                  Период
                 </p>
-                <p className="font-bold text-primary">{formatMPI(playerLastResult.mpi)}</p>
+                <p className="font-bold">
+                  {currentPeriod}{' '}
+                  <span className="text-muted-foreground font-normal">/ {config.totalPeriods}</span>
+                </p>
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {phase === 'deciding' && !showEndConfirm && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => setShowEndConfirm(true)}
-              >
-                Закончить игру
-              </Button>
-            )}
-            {showEndConfirm && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Завершить?</span>
-                <Button variant="destructive" size="sm" onClick={handleEndGame}>
-                  Да
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowEndConfirm(false)}>
-                  Нет
-                </Button>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Касса
+                </p>
+                <p className={`font-bold ${player.cash <= 0 ? 'text-destructive' : ''}`}>
+                  {formatMoney(player.cash)} УДЕ
+                </p>
               </div>
-            )}
-            {!showEndConfirm && (
-              <Button variant="ghost" size="sm" onClick={() => navigate('home')}>
-                ← Меню
-              </Button>
-            )}
+              {playerLastResult && (
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    MPI
+                  </p>
+                  <p className="font-bold text-primary">{formatMPI(playerLastResult.mpi)}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {phase === 'deciding' && !showEndConfirm && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => setShowEndConfirm(true)}
+                >
+                  Закончить игру
+                </Button>
+              )}
+              {showEndConfirm && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Завершить?</span>
+                  <Button variant="destructive" size="sm" onClick={handleEndGame}>
+                    Да
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowEndConfirm(false)}>
+                    Нет
+                  </Button>
+                </div>
+              )}
+              {!showEndConfirm && (
+                <Button variant="ghost" size="sm" onClick={() => navigate('home')}>
+                  ← Меню
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-        {/* Progress bar */}
-        <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </CardContent>
-    </Card>
+          <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </BubbleTip>
   )
 
-  // --- Metric selector ---
   const metricSelector = (
     <div className="flex gap-2 flex-wrap">
       {METRIC_OPTIONS.map((m) => (
@@ -199,11 +225,32 @@ export default function GameScreen() {
   if (phase === 'deciding') {
     return (
       <PageLayout title={`Период ${currentPeriod}`}>
+        {/* Welcome tip — на всю страницу */}
+        <BubbleTip
+          id="welcome"
+          arrow="bottom"
+          content="Добро пожаловать! Каждый период вы принимаете 5 решений: цена, производство, маркетинг, инвестиции и R&D. Побеждает тот, у кого выше MPI."
+          step={1}
+          totalSteps={TOTAL_ONBOARDING_STEPS}
+          onNext={() => showTip('status-bar')}
+        >
+          <div />
+        </BubbleTip>
+
         {statusBar}
         <div className="grid lg:grid-cols-2 gap-5">
-          <div>
-            <DecisionsForm key={currentPeriod} onSubmit={handleSubmit} />
-          </div>
+          <BubbleTip
+            id="decisions-form"
+            arrow="right"
+            content="Настройте 5 параметров с помощью ползунков. Следите за бюджетом вверху — не тратьте больше, чем есть в кассе!"
+            step={3}
+            totalSteps={TOTAL_ONBOARDING_STEPS}
+            onNext={() => showTip('budget-bar')}
+          >
+            <div>
+              <DecisionsForm key={currentPeriod} onSubmit={handleSubmit} />
+            </div>
+          </BubbleTip>
           <div className="space-y-5">
             {lastPeriodResult && playerLastResult && (
               <PeriodReport result={playerLastResult} companyName={player.name} />
@@ -259,14 +306,31 @@ export default function GameScreen() {
           <div className="space-y-5">
             <div className="grid lg:grid-cols-2 gap-5">
               {playerLastResult && (
-                <PeriodReport result={playerLastResult} companyName={player.name} />
+                <BubbleTip
+                  id="period-result"
+                  arrow="right"
+                  content="Это ваш финансовый отчёт за период. Следите за чистой прибылью и кассой — если деньги кончатся, компания обанкротится!"
+                  step={4}
+                  totalSteps={TOTAL_ONBOARDING_STEPS}
+                  onNext={() => showTip('rating-table')}
+                >
+                  <PeriodReport result={playerLastResult} companyName={player.name} />
+                </BubbleTip>
               )}
               <div className="space-y-5">
-                <RatingTable
-                  results={lastPeriodResult.results}
-                  companies={companies}
-                  playerCompanyId={playerCompanyId}
-                />
+                <BubbleTip
+                  id="rating-table"
+                  arrow="left"
+                  content="Рейтинг компаний по MPI. Ваша цель — быть на первом месте к концу игры. Изучайте конкурентов!"
+                  step={5}
+                  totalSteps={TOTAL_ONBOARDING_STEPS}
+                >
+                  <RatingTable
+                    results={lastPeriodResult.results}
+                    companies={companies}
+                    playerCompanyId={playerCompanyId}
+                  />
+                </BubbleTip>
                 <Button size="lg" className="w-full h-12 rounded-xl" onClick={handleContinue}>
                   {isOver
                     ? '📊 Итоги игры →'
@@ -275,13 +339,34 @@ export default function GameScreen() {
               </div>
             </div>
 
-            {metricSelector}
-            <HistoryChart
-              history={periodHistory}
-              companies={companies}
-              playerCompanyId={playerCompanyId}
-              metric={chartMetric}
-            />
+            {periodHistory.length > 1 && (
+              <>
+                {metricSelector}
+                <BubbleTip
+                  id="chart-metrics"
+                  arrow="top"
+                  content="Переключайте метрики, чтобы сравнить динамику компаний по прибыли, доле рынка и другим показателям."
+                >
+                  <HistoryChart
+                    history={periodHistory}
+                    companies={companies}
+                    playerCompanyId={playerCompanyId}
+                    metric={chartMetric}
+                  />
+                </BubbleTip>
+              </>
+            )}
+            {periodHistory.length <= 1 && (
+              <>
+                {metricSelector}
+                <HistoryChart
+                  history={periodHistory}
+                  companies={companies}
+                  playerCompanyId={playerCompanyId}
+                  metric={chartMetric}
+                />
+              </>
+            )}
           </div>
         )}
       </PageLayout>
