@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
+import { useOnboardingStore } from '@/store/onboardingStore'
 import { Button } from '@/components/ui/button'
+import { BubbleTip } from '@/components/ui/bubble-tip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatMoney } from '@/lib/format'
 import type { Decisions } from '@/engine/types'
@@ -90,6 +92,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
     }
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const showTip = useOnboardingStore((s) => s.show)
 
   if (!player || !config) return null
 
@@ -125,18 +128,27 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
             </span>
           </div>
           {/* Budget progress bar */}
-          <div className="h-2 rounded-full bg-secondary overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                isOverBudget
-                  ? 'bg-destructive'
-                  : budgetUsedPercent > 70
-                    ? 'bg-warning'
-                    : 'bg-primary'
-              }`}
-              style={{ width: `${Math.min(100, budgetUsedPercent)}%` }}
-            />
-          </div>
+          <BubbleTip
+            id="budget-bar"
+            arrow="top"
+            content="Эта шкала показывает, сколько кассы вы тратите. Маркетинг, инвестиции и R&D — прямые расходы. Не забудьте про затраты на производство ниже!"
+            step={4}
+            totalSteps={5}
+            onNext={() => showTip('submit-period')}
+          >
+            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  isOverBudget
+                    ? 'bg-destructive'
+                    : budgetUsedPercent > 70
+                      ? 'bg-warning'
+                      : 'bg-primary'
+                }`}
+                style={{ width: `${Math.min(100, budgetUsedPercent)}%` }}
+              />
+            </div>
+          </BubbleTip>
           {/* Оценка затрат на производство */}
           <p className="text-xs text-muted-foreground">
             Оценка затрат на производство: ~{formatMoney(productionCost)} УДЕ (
@@ -183,18 +195,26 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
           )
         })}
 
-        <Button
-          className="w-full mt-2 h-12 text-base rounded-xl"
-          size="lg"
-          onClick={handleSubmit}
-          disabled={isOverBudget || isSubmitting}
+        <BubbleTip
+          id="submit-period"
+          arrow="top"
+          content="Когда будете готовы — нажмите, чтобы завершить период. Все компании (включая ИИ) ходят одновременно."
+          step={5}
+          totalSteps={5}
         >
-          {isSubmitting
-            ? 'Расчёт...'
-            : isOverBudget
-              ? 'Недостаточно средств'
-              : 'Завершить период →'}
-        </Button>
+          <Button
+            className="w-full mt-2 h-12 text-base rounded-xl"
+            size="lg"
+            onClick={handleSubmit}
+            disabled={isOverBudget || isSubmitting}
+          >
+            {isSubmitting
+              ? 'Расчёт...'
+              : isOverBudget
+                ? 'Недостаточно средств'
+                : 'Завершить период →'}
+          </Button>
+        </BubbleTip>
       </CardContent>
     </Card>
   )

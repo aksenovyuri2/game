@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { useOnboardingStore } from '@/store/onboardingStore'
 
 const PARAMS = [
   {
@@ -51,6 +54,15 @@ const MPI_FACTORS = [
 ]
 
 export default function HelpScreen() {
+  const resetOnboarding = useOnboardingStore((s) => s.resetOnboarding)
+  const [resetDone, setResetDone] = useState(false)
+
+  const handleReset = () => {
+    resetOnboarding()
+    setResetDone(true)
+    setTimeout(() => setResetDone(false), 2000)
+  }
+
   return (
     <PageLayout title="Справка" showBack>
       <div className="max-w-2xl mx-auto space-y-8">
@@ -146,6 +158,17 @@ export default function HelpScreen() {
                 Нераспределённая прибыль — главный показатель MPI, держите компанию прибыльной.
               </li>
             </ul>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Подсказки</p>
+              <p className="text-xs text-muted-foreground">Показать обучающие подсказки заново</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleReset} disabled={resetDone}>
+              {resetDone ? 'Готово!' : 'Сбросить подсказки'}
+            </Button>
           </CardContent>
         </Card>
       </div>
