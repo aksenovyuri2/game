@@ -61,17 +61,23 @@ export function PeriodReport({ result, companyName }: PeriodReportProps) {
         <div>
           <SectionHeader label="Финансовый результат (УДЕ)" />
           <Row label="Выручка" value={formatMoney(result.revenue)} />
-          <Row label="Себестоимость" value={`−${formatMoney(result.cogs)}`} />
+          <Row
+            label="Себестоимость"
+            value={`−${formatMoney(result.cogs ?? result.costOfGoodsSold)}`}
+          />
           <Row label="Валовая прибыль" value={formatMoney(result.grossProfit)} bold />
-          <Row label="Постоянные затраты" value={`−${formatMoney(result.fixedCosts)}`} />
+          <Row label="Постоянные затраты" value={`−${formatMoney(result.fixedCosts ?? 0)}`} />
           <Row label="Маркетинг" value={`−${formatMoney(result.marketingExpense)}`} />
           <Row label="НИОКР" value={`−${formatMoney(result.rdExpense)}`} />
           <Row label="Амортизация" value={`−${formatMoney(result.depreciation)}`} />
-          <Row label="Складские расходы" value={`−${formatMoney(result.storageCost)}`} />
+          <Row
+            label="Складские расходы"
+            value={`−${formatMoney(result.storageCost ?? result.holdingCost)}`}
+          />
           <Row
             label="EBIT"
-            value={formatMoney(result.ebit)}
-            highlight={result.ebit >= 0 ? 'positive' : 'negative'}
+            value={formatMoney(result.ebit ?? result.operatingProfit)}
+            highlight={(result.ebit ?? result.operatingProfit) >= 0 ? 'positive' : 'negative'}
             bold
           />
           <Row label="Налог (20%)" value={`−${formatMoney(result.tax)}`} />

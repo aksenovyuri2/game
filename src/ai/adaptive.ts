@@ -20,8 +20,9 @@ export class AdaptiveAI extends BaseAI {
     const demand = this.estimateDemand(ctx)
     const phase = this.getPhase(ctx)
     const str = this.strength
-    const totalPlayers = cfg.aiCount + 1
-    const variableCost = estimateVariableCost(s.equipment, cfg.baseVariableCost)
+    const totalPlayers = (cfg.aiCount ?? 3) + 1
+    const baseVariableCost = cfg.baseVariableCost ?? 12.0
+    const variableCost = estimateVariableCost(s.equipment, baseVariableCost)
 
     // ── Анализ конкурентов ──────────────────────────────────────────────
     const hasCompetitorData =
@@ -29,7 +30,8 @@ export class AdaptiveAI extends BaseAI {
       ctx.competitorDecisions !== undefined &&
       ctx.competitorDecisions.length > 0
 
-    let avgCompPrice = cfg.basePrice
+    const basePrice = cfg.basePrice ?? 35
+    let avgCompPrice: number = basePrice
     let avgCompMarketing = 10000
     let competitorsInvestInRD = false
 
@@ -44,10 +46,10 @@ export class AdaptiveAI extends BaseAI {
     // ── Анализ собственного состояния ────────────────────────────────────
     const isWinning = s.retainedEarnings > 10000
     const isLosing = s.retainedEarnings < -20000
-    const hasCostAdvantage = variableCost < cfg.baseVariableCost * 0.85
+    const hasCostAdvantage = variableCost < baseVariableCost * 0.85
     const hasRDAdvantage = s.rdAccumulated > 40000
     const rdAdvantage = Math.min(1, s.rdAccumulated / 80000)
-    const costAdvantage = Math.max(0, 1 - variableCost / cfg.baseVariableCost)
+    const costAdvantage = Math.max(0, 1 - variableCost / baseVariableCost)
 
     // ── Стратегия ценообразования ────────────────────────────────────────
     let targetPrice: number
@@ -58,13 +60,13 @@ export class AdaptiveAI extends BaseAI {
       targetPrice = avgCompPrice * undercutFactor
     } else {
       // Без данных: агрессивная цена ниже базы
-      targetPrice = cfg.basePrice * 0.93
+      targetPrice = basePrice * 0.93
     }
 
     // Корректировка по фазе
     switch (phase) {
       case 'early':
-        targetPrice = Math.max(targetPrice, cfg.basePrice * 0.95) // не слишком низко в начале
+        targetPrice = Math.max(targetPrice, basePrice * 0.95) // не слишком низко в начале
         break
       case 'mid':
         targetPrice *= 1 - costAdvantage * 0.05 // используем преимущество по костам
@@ -148,7 +150,7 @@ export class AdaptiveAI extends BaseAI {
       price: targetPrice,
       production,
       marketing: s.cash * marketingRate,
-      capitalInvestment: s.cash * capexRate,
+      capex: s.cash * capexRate,
       rd: s.cash * rdRate,
     }
 

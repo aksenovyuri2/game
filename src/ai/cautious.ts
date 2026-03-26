@@ -22,8 +22,9 @@ export class CautiousAI extends BaseAI {
     const phase = this.getPhase(ctx)
     const str = this.strength
 
-    const totalPlayers = cfg.aiCount + 1
-    const variableCost = estimateVariableCost(s.equipment, cfg.baseVariableCost)
+    const totalPlayers = (cfg.aiCount ?? 3) + 1
+    const baseVariableCost = cfg.baseVariableCost ?? 12.0
+    const variableCost = estimateVariableCost(s.equipment, baseVariableCost)
 
     // Стратегия ценообразования зависит от фазы и накопленного R&D
     const rdAdvantage = Math.min(1, s.rdAccumulated / 80000) // [0, 1]
@@ -60,7 +61,8 @@ export class CautiousAI extends BaseAI {
         break
     }
 
-    const price = Math.max(variableCost * 1.15, cfg.basePrice * priceMult)
+    const basePrice = cfg.basePrice ?? 35
+    const price = Math.max(variableCost * 1.15, basePrice * priceMult)
     const estimatedShare = 1 / totalPlayers
     const production = Math.round(demand * estimatedShare * productionMult)
     const availableCash = s.cash
@@ -69,7 +71,7 @@ export class CautiousAI extends BaseAI {
       price,
       production,
       marketing: availableCash * marketingRate,
-      capitalInvestment: availableCash * capexRate,
+      capex: availableCash * capexRate,
       rd: availableCash * rdRate,
     }
 

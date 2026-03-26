@@ -87,6 +87,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
       price: 100,
       production: 1000,
       marketing: 10000,
+      capex: 10000,
       capitalInvestment: 10000,
       rd: 5000,
     }
@@ -99,9 +100,10 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
   // Расчёт полных расходов включая производство
   const variableCost = calcVariableCostPerUnit(player.equipment, config)
   const productionCost = decisions.production * variableCost
-  const directSpend = decisions.marketing + decisions.capitalInvestment + decisions.rd
+  const capexAmount = decisions.capex ?? decisions.capitalInvestment ?? 0
+  const directSpend = decisions.marketing + capexAmount + decisions.rd
   const totalEstimatedCost = directSpend + productionCost
-  const cashAfter = player.cash - directSpend - decisions.capitalInvestment
+  const cashAfter = player.cash - directSpend - capexAmount
   const isOverBudget = cashAfter < 0
   const budgetUsedPercent = player.cash > 0 ? Math.min(100, (directSpend / player.cash) * 100) : 100
 
@@ -173,7 +175,9 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
                   {f.label}
                 </label>
                 <span className="text-sm font-bold font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                  {f.key === 'production' ? `${val} ${f.unit}` : `${formatMoney(val)} ${f.unit}`}
+                  {f.key === 'production'
+                    ? `${val} ${f.unit}`
+                    : `${formatMoney(val ?? 0)} ${f.unit}`}
                 </span>
               </div>
               <input

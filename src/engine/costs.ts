@@ -1,4 +1,4 @@
-import type { GameConfig } from './types'
+import { DEFAULT_CONFIG, type GameConfig } from './types'
 
 /**
  * Переменная себестоимость на единицу.
@@ -6,14 +6,16 @@ import type { GameConfig } from './types'
  * Formula: baseCost / (1 + equipment / 500_000)
  */
 export function calcVariableCostPerUnit(equipment: number, cfg: GameConfig): number {
-  return cfg.baseVariableCost / (1 + Math.max(0, equipment) / 500000)
+  const baseVariableCost = cfg.baseVariableCost ?? DEFAULT_CONFIG.baseVariableCost ?? 12.0
+  return baseVariableCost / (1 + Math.max(0, equipment) / 500000)
 }
 
 /**
  * Амортизация оборудования за период.
  */
 export function calcDepreciation(equipment: number, cfg: GameConfig): number {
-  return Math.max(0, equipment) * cfg.depreciationRate
+  const depreciationRate = cfg.depreciationRate ?? DEFAULT_CONFIG.depreciationRate ?? 0.08
+  return Math.max(0, equipment) * depreciationRate
 }
 
 /**
@@ -24,7 +26,8 @@ export function calcNewEquipment(
   capitalInvestment: number,
   cfg: GameConfig
 ): number {
-  const afterDeprec = Math.max(0, prevEquipment) * (1 - cfg.depreciationRate)
+  const depreciationRate = cfg.depreciationRate ?? DEFAULT_CONFIG.depreciationRate ?? 0.08
+  const afterDeprec = Math.max(0, prevEquipment) * (1 - depreciationRate)
   return afterDeprec + Math.max(0, capitalInvestment)
 }
 
@@ -32,7 +35,8 @@ export function calcNewEquipment(
  * Расходы на хранение остатков склада.
  */
 export function calcStorageCost(endInventory: number, cfg: GameConfig): number {
-  return Math.max(0, endInventory) * cfg.storageCostPerUnit
+  const storageCostPerUnit = cfg.storageCostPerUnit ?? DEFAULT_CONFIG.storageCostPerUnit ?? 1.5
+  return Math.max(0, endInventory) * storageCostPerUnit
 }
 
 /**
@@ -44,5 +48,6 @@ export function calcProductionCost(
   variableCostPerUnit: number,
   cfg: GameConfig
 ): number {
-  return Math.max(0, produced) * variableCostPerUnit + cfg.fixedCosts
+  const fixedCosts = cfg.fixedCosts ?? DEFAULT_CONFIG.fixedCosts ?? 8000
+  return Math.max(0, produced) * variableCostPerUnit + fixedCosts
 }

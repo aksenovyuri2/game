@@ -4,6 +4,7 @@ import { AggressiveAI } from '../../../src/ai/aggressive'
 import { BalancedAI } from '../../../src/ai/balanced'
 import { AdaptiveAI } from '../../../src/ai/adaptive'
 import { DEFAULT_CONFIG, INITIAL_COMPANY_STATE } from '../../../src/engine/types'
+import { DEFAULT_DECISIONS } from '../../../src/engine/validation'
 import type { AIDecisionContext, DifficultyConfig } from '../../../src/ai/types'
 import type { CompanyState } from '../../../src/engine/types'
 
@@ -41,8 +42,14 @@ function makeCompanyState(id: string, overrides: Partial<CompanyState> = {}): Co
     inventory: INITIAL_COMPANY_STATE.inventory,
     equipment: INITIAL_COMPANY_STATE.equipment,
     rdAccumulated: INITIAL_COMPANY_STATE.rdAccumulated,
+    isAI: true,
+    loanBalance: INITIAL_COMPANY_STATE.loanBalance,
+    creditRating: INITIAL_COMPANY_STATE.creditRating,
+    capacity: INITIAL_COMPANY_STATE.capacity,
+    brandReputation: INITIAL_COMPANY_STATE.brandReputation,
+    salesHistory: [...INITIAL_COMPANY_STATE.salesHistory],
     isBankrupt: false,
-    decisions: { ...INITIAL_COMPANY_STATE.decisions },
+    decisions: { ...DEFAULT_DECISIONS },
     ...overrides,
   }
 }
@@ -58,6 +65,8 @@ function makeCtx(
       period: 1,
       totalPeriods: 12,
       scenario: 'stable',
+      economicMultiplier: 1.0,
+      numberOfCompanies: 5,
       macroFactor: 1.0,
       baseMarketSize: cfg.baseMarketSize,
     },
@@ -94,10 +103,10 @@ describe.each(characters)('$name — базовые требования', ({ cr
     expect(d.marketing).toBeGreaterThanOrEqual(0)
   })
 
-  it('capitalInvestment ≥ 0', () => {
+  it('capex ≥ 0', () => {
     const ai = create(masterDifficulty)
     const d = ai.makeDecisions(makeCtx('ai1', masterDifficulty))
-    expect(d.capitalInvestment).toBeGreaterThanOrEqual(0)
+    expect(d.capex).toBeGreaterThanOrEqual(0)
   })
 
   it('rd ≥ 0', () => {
@@ -110,7 +119,7 @@ describe.each(characters)('$name — базовые требования', ({ cr
     const cash = INITIAL_COMPANY_STATE.cash
     const ai = create(masterDifficulty)
     const d = ai.makeDecisions(makeCtx('ai1', masterDifficulty))
-    const spend = d.marketing + d.capitalInvestment + d.rd
+    const spend = d.marketing + d.capex + d.rd
     expect(spend).toBeLessThanOrEqual(cash * 0.8 + 1)
   })
 
@@ -244,8 +253,8 @@ describe('AggressiveAI', () => {
     })
     const d = ai.makeDecisions(ctx)
     // CapEx should be the largest single investment in early phase
-    expect(d.capitalInvestment).toBeGreaterThan(d.rd)
-    expect(d.capitalInvestment).toBeGreaterThan(d.marketing)
+    expect(d.capex).toBeGreaterThan(d.rd)
+    expect(d.capex).toBeGreaterThan(d.marketing)
   })
 
   it('price drops further in late phase with cost advantage', () => {
@@ -282,16 +291,16 @@ describe('BalancedAI', () => {
     const ai = new BalancedAI(masterDifficulty)
     const d = ai.makeDecisions(makeCtx('ai1', masterDifficulty))
     expect(d.marketing).toBeGreaterThan(0)
-    expect(d.capitalInvestment).toBeGreaterThan(0)
+    expect(d.capex).toBeGreaterThan(0)
     expect(d.rd).toBeGreaterThan(0)
   })
 
   it('investments are relatively balanced (no single dominates > 60%)', () => {
     const ai = new BalancedAI(masterDifficulty)
     const d = ai.makeDecisions(makeCtx('ai1', masterDifficulty))
-    const total = d.marketing + d.capitalInvestment + d.rd
+    const total = d.marketing + d.capex + d.rd
     expect(d.marketing / total).toBeLessThan(0.6)
-    expect(d.capitalInvestment / total).toBeLessThan(0.6)
+    expect(d.capex / total).toBeLessThan(0.6)
     expect(d.rd / total).toBeLessThan(0.6)
   })
 
@@ -409,8 +418,8 @@ describe('AdaptiveAI', () => {
     const dLate = ai.makeDecisions(lateCtx)
 
     // Early: more investment (capex+rd), Late: more marketing
-    const earlyInvestment = dEarly.capitalInvestment + dEarly.rd
-    const lateInvestment = dLate.capitalInvestment + dLate.rd
+    const earlyInvestment = dEarly.capex + dEarly.rd
+    const lateInvestment = dLate.capex + dLate.rd
     expect(earlyInvestment).toBeGreaterThan(lateInvestment)
     expect(dLate.marketing).toBeGreaterThan(dEarly.marketing)
   })

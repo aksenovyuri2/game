@@ -31,7 +31,7 @@ export function validateDecisions(
   const price = raw.price ?? fallback.price
   const production = raw.production ?? fallback.production
   const marketing = raw.marketing ?? fallback.marketing
-  const capex = raw.capex ?? raw.capitalInvestment ?? fallback.capex
+  const capex = raw.capex ?? raw.capitalInvestment ?? fallback.capex ?? 5000
   const rd = raw.rd ?? fallback.rd
 
   const maxProduction = Math.floor(capacity * 1.5)

@@ -9,7 +9,7 @@ export interface Decisions {
   price: number // Цена за единицу [10–100], шаг 1
   production: number // Объём производства [0–capacity×1.5], шаг 10
   marketing: number // Бюджет на маркетинг [0–30000], шаг 100
-  capex: number // Капитальные инвестиции [0–40000], шаг 100
+  capex?: number // Капитальные инвестиции [0–40000], шаг 100
   rd: number // НИОКР [0–30000], шаг 100
   // Алиас для обратной совместимости
   capitalInvestment?: number
@@ -176,7 +176,7 @@ export interface InitialCompanyParams {
   isAI?: boolean
   isHuman?: boolean
   aiCharacter?: AICharacter
-  decisions: Decisions
+  decisions?: Decisions
 }
 
 /** Начальное состояние компании (v2.0) */
