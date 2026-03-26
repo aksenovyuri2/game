@@ -1,16 +1,17 @@
 import {
   DEPRECIATION_RATE,
-  INITIAL_EQUIPMENT,
-  BASE_CAPACITY,
-  CAPACITY_SENSITIVITY,
   RD_DEPRECIATION,
   BASE_FIXED_COSTS,
   MAINTENANCE_RATE,
   BASE_VARIABLE_COST,
   MAX_RD_EFFICIENCY,
-  RD_EFFICIENCY_SCALE,
   MAX_SCALE_DISCOUNT,
   OVERTIME_COST_MULTIPLIER,
+  CAPEX_MIDPOINT,
+  CAPEX_STEEPNESS,
+  RD_MIDPOINT,
+  RD_STEEPNESS,
+  MIN_RD_STEP,
 } from './constants'
 
 export interface UnitCostResult {
@@ -33,14 +34,16 @@ export function calcEquipment(prevEquipment: number, capex: number): number {
 
 /**
  * Рассчитывает производственную мощность на основе оборудования.
- * capacity = BASE_CAPACITY × (1 + CAPACITY_SENSITIVITY × ln(max(capitalRatio, 0.1)))
+ * S-кривая (логистическая): медленный рост → быстрый → плато.
  * Clamp: [200, 3000]
  */
 export function calcCapacity(equipment: number): number {
-  const capitalRatio = equipment / INITIAL_EQUIPMENT
-  const capacityMultiplier = 1 + CAPACITY_SENSITIVITY * Math.log(Math.max(capitalRatio, 0.1))
-  const capacity = BASE_CAPACITY * capacityMultiplier
-  return Math.max(200, Math.min(3000, capacity))
+  const MIN_CAP = 200
+  const MAX_CAP = 3000
+  // Логистическая S-кривая
+  const rawCapacity =
+    MIN_CAP + (MAX_CAP - MIN_CAP) / (1 + Math.exp(-CAPEX_STEEPNESS * (equipment - CAPEX_MIDPOINT)))
+  return Math.max(MIN_CAP, Math.min(MAX_CAP, Math.round(rawCapacity)))
 }
 
 /**
@@ -65,8 +68,14 @@ export function calcUnitCost(
   const totalFixedCosts = BASE_FIXED_COSTS + maintenanceCost
   const fixedCostPerUnit = totalFixedCosts / Math.max(production, 1)
 
-  // R&D эффективность
-  const rdEfficiency = Math.min(MAX_RD_EFFICIENCY, rdAccumulated / RD_EFFICIENCY_SCALE)
+  // R&D эффективность — S-кривая с минимальным шагом
+  let rdEfficiency: number
+  if (rdAccumulated <= 0) {
+    rdEfficiency = 0
+  } else {
+    const rawEff = MAX_RD_EFFICIENCY / (1 + Math.exp(-RD_STEEPNESS * (rdAccumulated - RD_MIDPOINT)))
+    rdEfficiency = Math.max(MIN_RD_STEP, rawEff)
+  }
 
   // Переменные затраты
   const rawVariableCost = BASE_VARIABLE_COST * (1 - rdEfficiency)

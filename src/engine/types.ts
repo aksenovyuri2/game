@@ -169,6 +169,19 @@ export interface ActiveEvent {
 
 export type CombinedEffects = EventEffects
 
+export type StartingCashPreset = 'low' | 'medium' | 'high'
+
+export function getStartingCash(preset: StartingCashPreset): number {
+  switch (preset) {
+    case 'low':
+      return 30000
+    case 'medium':
+      return 50000
+    case 'high':
+      return 80000
+  }
+}
+
 /** Начальные параметры новой компании */
 export interface InitialCompanyParams {
   id: string
@@ -176,7 +189,8 @@ export interface InitialCompanyParams {
   isAI?: boolean
   isHuman?: boolean
   aiCharacter?: AICharacter
-  decisions: Decisions
+  decisions?: Decisions
+  startingCash?: StartingCashPreset
 }
 
 /** Начальное состояние компании (v2.0) */

@@ -15,6 +15,7 @@ import {
   type MarketScenario,
   type MarketState,
   type SimulationPeriodResult,
+  type StartingCashPreset,
 } from '../engine/types'
 
 export type GamePhase = 'idle' | 'deciding' | 'period-result' | 'game-over'
@@ -28,6 +29,7 @@ export interface NewGameParams {
   scenario: MarketScenario
   totalPeriods: number
   aiCount: number
+  startingCash?: StartingCashPreset
 }
 
 /** Снапшот для сохранения/загрузки */
@@ -101,6 +103,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       id: playerCompanyId,
       name: params.playerName || 'Моя компания',
       isHuman: true,
+      startingCash: params.startingCash,
     })
 
     const aiCharacters: AICharacter[] = assignAICharacters(params.aiCount, params.difficulty, seed)
@@ -110,6 +113,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         name: AI_NAMES[i % AI_NAMES.length] ?? `Компания ${i + 1}`,
         isHuman: false,
         aiCharacter: character,
+        startingCash: params.startingCash,
       }),
     }))
 

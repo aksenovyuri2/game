@@ -5,7 +5,7 @@ import type {
   SimulationPeriodResult,
   InitialCompanyParams,
 } from './types'
-import { INITIAL_COMPANY_STATE } from './types'
+import { INITIAL_COMPANY_STATE, getStartingCash } from './types'
 import { validateDecisions } from './validation'
 import { calcEquipment, calcCapacity, calcRdAccumulated, calcUnitCost } from './production'
 import { calcEconomicMultiplier, calcTotalMarketDemand } from './demand'
@@ -38,7 +38,7 @@ export function createInitialCompanyState(params: InitialCompanyParams): Company
       capex: 5000,
       rd: 3000,
     },
-    cash: INITIAL_COMPANY_STATE.cash,
+    cash: params.startingCash ? getStartingCash(params.startingCash) : INITIAL_COMPANY_STATE.cash,
     retainedEarnings: INITIAL_COMPANY_STATE.retainedEarnings,
     loanBalance: INITIAL_COMPANY_STATE.loanBalance,
     creditRating: INITIAL_COMPANY_STATE.creditRating,

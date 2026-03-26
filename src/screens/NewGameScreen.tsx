@@ -5,7 +5,7 @@ import { PageLayout } from '@/components/layout/PageLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Difficulty, MarketScenario } from '@/engine/types'
+import type { Difficulty, MarketScenario, StartingCashPreset } from '@/engine/types'
 
 const DIFFICULTIES: { value: Difficulty; label: string; desc: string; icon: string }[] = [
   {
@@ -34,6 +34,36 @@ const DIFFICULTIES: { value: Difficulty; label: string; desc: string; icon: stri
   },
 ]
 
+const STARTING_CASH: {
+  value: StartingCashPreset
+  label: string
+  amount: string
+  desc: string
+  icon: string
+}[] = [
+  {
+    value: 'low',
+    label: 'Низкий',
+    amount: '30 000',
+    desc: 'Минимум ресурсов. Нужна точная стратегия.',
+    icon: '🪙',
+  },
+  {
+    value: 'medium',
+    label: 'Средний',
+    amount: '50 000',
+    desc: 'Стандартный старт. Есть запас для манёвров.',
+    icon: '💰',
+  },
+  {
+    value: 'high',
+    label: 'Высокий',
+    amount: '80 000',
+    desc: 'Комфортный старт. Можно экспериментировать.',
+    icon: '🏦',
+  },
+]
+
 const SCENARIOS: { value: MarketScenario; label: string; desc: string; icon: string }[] = [
   { value: 'stable', label: 'Стабильный', desc: 'Ровный спрос.', icon: '📊' },
   { value: 'growing', label: 'Растущий', desc: 'Рынок +3%/период.', icon: '📈' },
@@ -51,6 +81,7 @@ export default function NewGameScreen() {
     scenario: 'stable',
     totalPeriods: 12,
     aiCount: 4,
+    startingCash: 'medium',
   })
 
   const handleStart = () => {
@@ -124,6 +155,31 @@ export default function NewGameScreen() {
               >
                 <span className="text-xl">{s.icon}</span>
                 <p className="font-semibold text-sm mt-1.5">{s.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Стартовый капитал */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Стартовый капитал</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-3 gap-3">
+            {STARTING_CASH.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setParams((p) => ({ ...p, startingCash: s.value }))}
+                className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+                  params.startingCash === s.value
+                    ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
+                    : 'border-transparent bg-secondary/50 hover:bg-secondary hover:border-border'
+                }`}
+              >
+                <span className="text-xl">{s.icon}</span>
+                <p className="font-semibold text-sm mt-1.5">{s.label}</p>
+                <p className="text-xs font-bold text-primary">{s.amount} УДЕ</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
               </button>
             ))}
