@@ -246,6 +246,7 @@ export function simulatePeriod(
     calcCashAndLoans({
       prevCash: c.cash,
       netProfit: pnlResults[i]!.netProfit,
+      depreciation: pnlResults[i]!.depreciation,
       capex: validatedDecisions[i]!.capex ?? validatedDecisions[i]!.capitalInvestment ?? 0,
       prevLoanBalance: c.loanBalance,
       prevCreditRating: c.creditRating,

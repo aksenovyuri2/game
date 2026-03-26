@@ -44,6 +44,7 @@ export interface PnLResult {
 export interface CashLoanParams {
   prevCash: number
   netProfit: number
+  depreciation: number
   capex: number
   prevLoanBalance: number
   prevCreditRating: number
@@ -128,9 +129,11 @@ export function calcPnL(params: PnLParams): PnLResult {
  * Этап 8 конвейера.
  */
 export function calcCashAndLoans(params: CashLoanParams): CashLoanResult {
-  const { prevCash, netProfit, capex, prevLoanBalance, prevCreditRating, equipment } = params
+  const { prevCash, netProfit, depreciation, capex, prevLoanBalance, prevCreditRating, equipment } =
+    params
 
-  let cash = prevCash + netProfit - capex
+  // Амортизация — неденежный расход: вычтена из netProfit в P&L, добавляем обратно
+  let cash = prevCash + netProfit + depreciation - capex
   let loanBalance = prevLoanBalance
   let creditRating = prevCreditRating
 
