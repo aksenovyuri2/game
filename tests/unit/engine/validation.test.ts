@@ -8,7 +8,7 @@ describe('validateDecisions', () => {
   describe('значения по умолчанию', () => {
     it('возвращает DEFAULT_DECISIONS при пустом вводе на период 1', () => {
       const result = validateDecisions({}, BASE_CAPACITY, undefined, 1)
-      expect(result.price).toBe(40)
+      expect(result.price).toBe(35)
       expect(result.production).toBe(800)
       expect(result.marketing).toBe(5000)
       expect(result.capex).toBe(5000)
@@ -18,7 +18,7 @@ describe('validateDecisions', () => {
     it('возвращает решения предыдущего периода при пустом вводе на период > 1', () => {
       const prev: Decisions = { price: 40, production: 900, marketing: 6000, capex: 4000, rd: 2000 }
       const result = validateDecisions({}, BASE_CAPACITY, prev, 2)
-      expect(result.price).toBe(40)
+      expect(result.price).toBe(40) // prev price
       expect(result.production).toBe(900)
       expect(result.marketing).toBe(6000)
       expect(result.capex).toBe(4000)
@@ -154,7 +154,7 @@ describe('validateDecisions', () => {
 
   describe('DEFAULT_DECISIONS', () => {
     it('содержит корректные значения по умолчанию', () => {
-      expect(DEFAULT_DECISIONS.price).toBe(40)
+      expect(DEFAULT_DECISIONS.price).toBe(35)
       expect(DEFAULT_DECISIONS.production).toBe(800)
       expect(DEFAULT_DECISIONS.marketing).toBe(5000)
       expect(DEFAULT_DECISIONS.capex).toBe(5000)

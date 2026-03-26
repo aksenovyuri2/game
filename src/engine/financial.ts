@@ -43,9 +43,16 @@ export interface PnLResult {
 
 export interface CashLoanParams {
   prevCash: number
-  netProfit: number
-  depreciation: number
+  revenue: number
+  productionCost: number
+  marketing: number
+  rd: number
   capex: number
+  tax: number
+  interestExpense: number
+  holdingCost: number
+  spoilageCost: number
+  productionOverhead: number
   prevLoanBalance: number
   prevCreditRating: number
   equipment: number
@@ -125,15 +132,44 @@ export function calcPnL(params: PnLParams): PnLResult {
 }
 
 /**
- * Рассчитывает денежный поток, автокредит и автопогашение.
+ * Рассчитывает денежный поток (прямой метод из ТЗ), автокредит и автопогашение.
  * Этап 8 конвейера.
+ *
+ * cash = prevCash + revenue - totalOutflow
+ * totalOutflow = productionCost + marketing + rd + capex + tax + interest
+ *              + holdingCost + spoilageCost + productionOverhead
  */
 export function calcCashAndLoans(params: CashLoanParams): CashLoanResult {
-  const { prevCash, netProfit, depreciation, capex, prevLoanBalance, prevCreditRating, equipment } =
-    params
+  const {
+    prevCash,
+    revenue,
+    productionCost,
+    marketing,
+    rd,
+    capex,
+    tax,
+    interestExpense,
+    holdingCost,
+    spoilageCost,
+    productionOverhead,
+    prevLoanBalance,
+    prevCreditRating,
+    equipment,
+  } = params
 
-  // Амортизация — неденежный расход: вычтена из netProfit в P&L, добавляем обратно
-  let cash = prevCash + netProfit + depreciation - capex
+  // Прямой метод: cash = prevCash + revenue - totalOutflow
+  const totalOutflow =
+    productionCost +
+    marketing +
+    rd +
+    capex +
+    tax +
+    interestExpense +
+    holdingCost +
+    spoilageCost +
+    productionOverhead
+
+  let cash = prevCash + revenue - totalOutflow
   let loanBalance = prevLoanBalance
   let creditRating = prevCreditRating
 

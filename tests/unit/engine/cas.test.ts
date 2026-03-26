@@ -8,44 +8,47 @@ import {
 } from '@/engine/cas'
 
 describe('calcPriceScore', () => {
-  it('все цены одинаковые (оптимальные) → priceScore высокий для всех', () => {
-    const prices = [40, 40, 40, 40]
+  it('все цены одинаковые → priceScore = 50 для всех', () => {
+    const prices = [35, 35, 35, 35]
     for (let i = 0; i < prices.length; i++) {
-      // Абсолютный компонент: 100 (оптимальная цена), относительный: 50
-      // 0.6*100 + 0.4*50 = 80
       const score = calcPriceScore(prices[i]!, prices)
-      expect(score).toBeCloseTo(80.0, 0)
+      expect(score).toBe(50.0)
     }
   })
 
-  it('самая низкая цена получает наивысший score среди конкурентов', () => {
+  it('самая низкая цена получает наивысший score', () => {
     const prices = [10, 50, 50, 50]
     const scoreLow = calcPriceScore(10, prices)
     const scoreHigh = calcPriceScore(50, prices)
     expect(scoreLow).toBeGreaterThan(scoreHigh)
   })
 
-  it('максимальная цена получает низкий score', () => {
+  it('максимальная цена получает score = 0', () => {
     const prices = [10, 50, 50, 50]
     const score = calcPriceScore(50, prices)
-    expect(score).toBeLessThan(20)
+    expect(score).toBe(0)
   })
 
-  it('гибридная формула: оптимальная цена 40 лучше крайних', () => {
-    const prices = [10, 40, 90]
+  it('прогрессивная эластичность: экспонента 1.3 усиливает преимущество дешёвых', () => {
+    const prices = [10, 35, 90]
     const score10 = calcPriceScore(10, prices)
-    const score40 = calcPriceScore(40, prices)
+    const score35 = calcPriceScore(35, prices)
     const score90 = calcPriceScore(90, prices)
-    // 40 — оптимальная, должна иметь высокий score
-    expect(score40).toBeGreaterThan(score10)
-    expect(score40).toBeGreaterThan(score90)
+    // 10 — самая низкая → score = 100 (capped)
+    // 35 — средняя, rawScore=68.75, 68.75^1.3 > 100 → тоже capped
+    expect(score10).toBeGreaterThanOrEqual(score35)
+    expect(score35).toBeGreaterThan(score90)
+    expect(score90).toBe(0)
   })
 
-  it('с двумя компаниями: цена демпингёра dominates', () => {
+  it('с двумя компаниями: дешёвая доминирует', () => {
     const prices = [10, 90]
     const scoreLow = calcPriceScore(10, prices)
     const scoreHigh = calcPriceScore(90, prices)
     expect(scoreLow).toBeGreaterThan(scoreHigh)
+    expect(scoreHigh).toBe(0)
+    // rawScore = 100 → 100^1.3 = 100 (capped)
+    expect(scoreLow).toBe(100)
   })
 })
 
@@ -57,11 +60,11 @@ describe('calcMarketingScore', () => {
     }
   })
 
-  it('marketing = 6000 → score в середине диапазона (S-кривая)', () => {
-    // Логистическая: 100 / (1 + exp(-0.0005*(6000-8000))) = 100/(1+exp(1)) ≈ 26.9
+  it('marketing = 6000 → baseScore ≈ 63 (экспоненциальная формула)', () => {
+    // MKTG_MAX × (1 - e^(-6000/6000)) = 100 × (1 - e^(-1)) ≈ 63.2
     const score = calcMarketingScore(6000, [6000])
-    expect(score).toBeGreaterThan(20)
-    expect(score).toBeLessThan(50)
+    expect(score).toBeGreaterThan(55)
+    expect(score).toBeLessThan(75)
   })
 
   it('высокий маркетинг одной компании при низком у остальных → до 100', () => {
@@ -110,7 +113,6 @@ describe('calcQualityScore', () => {
   })
 
   it('rdAccumulated = 5000 → qualityScore = 25.0', () => {
-    // 100 × 5000 / (5000 + 15000) = 25
     expect(calcQualityScore(5000)).toBeCloseTo(25.0, 1)
   })
 
@@ -152,7 +154,6 @@ describe('calcBrandScore', () => {
 
 describe('calcCAS', () => {
   it('CAS = взвешенная сумма 4 компонент', () => {
-    // W_PRICE=0.35, W_MKT=0.25, W_QUALITY=0.20, W_BRAND=0.20
     const cas = calcCAS(40, 60, 50, 50)
     const expected = 0.35 * 40 + 0.25 * 60 + 0.2 * 50 + 0.2 * 50
     expect(cas).toBeCloseTo(expected, 5)
@@ -169,7 +170,6 @@ describe('calcCAS', () => {
   })
 
   it('CAS с нулевым маркетингом и брендом', () => {
-    // Только цена и качество
     const cas = calcCAS(80, 0, 60, 0)
     const expected = Math.max(0.01, 0.35 * 80 + 0.25 * 0 + 0.2 * 60 + 0.2 * 0)
     expect(cas).toBeCloseTo(expected, 5)

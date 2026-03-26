@@ -1,17 +1,16 @@
 import {
+  BASE_CAPACITY,
+  INITIAL_EQUIPMENT,
   DEPRECIATION_RATE,
+  CAPACITY_SENSITIVITY,
   RD_DEPRECIATION,
   BASE_FIXED_COSTS,
   MAINTENANCE_RATE,
   BASE_VARIABLE_COST,
   MAX_RD_EFFICIENCY,
+  RD_EFFICIENCY_SCALE,
   MAX_SCALE_DISCOUNT,
   OVERTIME_COST_MULTIPLIER,
-  CAPEX_MIDPOINT,
-  CAPEX_STEEPNESS,
-  RD_MIDPOINT,
-  RD_STEEPNESS,
-  MIN_RD_STEP,
 } from './constants'
 
 export interface UnitCostResult {
@@ -34,16 +33,17 @@ export function calcEquipment(prevEquipment: number, capex: number): number {
 
 /**
  * Рассчитывает производственную мощность на основе оборудования.
- * S-кривая (логистическая): медленный рост → быстрый → плато.
+ * Логарифмическая формула из ТЗ:
+ *   capitalRatio = equipment / INITIAL_EQUIPMENT
+ *   capacityMultiplier = 1 + CAPACITY_SENSITIVITY × ln(max(capitalRatio, 0.1))
+ *   capacity = BASE_CAPACITY × capacityMultiplier
  * Clamp: [200, 3000]
  */
 export function calcCapacity(equipment: number): number {
-  const MIN_CAP = 200
-  const MAX_CAP = 3000
-  // Логистическая S-кривая
-  const rawCapacity =
-    MIN_CAP + (MAX_CAP - MIN_CAP) / (1 + Math.exp(-CAPEX_STEEPNESS * (equipment - CAPEX_MIDPOINT)))
-  return Math.max(MIN_CAP, Math.min(MAX_CAP, Math.round(rawCapacity)))
+  const capitalRatio = equipment / INITIAL_EQUIPMENT
+  const capacityMultiplier = 1 + CAPACITY_SENSITIVITY * Math.log(Math.max(capitalRatio, 0.1))
+  const rawCapacity = BASE_CAPACITY * capacityMultiplier
+  return Math.max(200, Math.min(3000, Math.round(rawCapacity)))
 }
 
 /**
@@ -56,6 +56,7 @@ export function calcRdAccumulated(prevRdAccumulated: number, rdSpend: number): n
 
 /**
  * Рассчитывает себестоимость единицы продукции.
+ * Линейная R&D эффективность: rdEfficiency = min(MAX_RD_EFFICIENCY, rdAccumulated / RD_EFFICIENCY_SCALE)
  */
 export function calcUnitCost(
   production: number,
@@ -68,14 +69,8 @@ export function calcUnitCost(
   const totalFixedCosts = BASE_FIXED_COSTS + maintenanceCost
   const fixedCostPerUnit = totalFixedCosts / Math.max(production, 1)
 
-  // R&D эффективность — S-кривая с минимальным шагом
-  let rdEfficiency: number
-  if (rdAccumulated <= 0) {
-    rdEfficiency = 0
-  } else {
-    const rawEff = MAX_RD_EFFICIENCY / (1 + Math.exp(-RD_STEEPNESS * (rdAccumulated - RD_MIDPOINT)))
-    rdEfficiency = Math.max(MIN_RD_STEP, rawEff)
-  }
+  // R&D эффективность — линейная
+  const rdEfficiency = Math.min(MAX_RD_EFFICIENCY, rdAccumulated / RD_EFFICIENCY_SCALE)
 
   // Переменные затраты
   const rawVariableCost = BASE_VARIABLE_COST * (1 - rdEfficiency)

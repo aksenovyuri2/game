@@ -1,31 +1,30 @@
 import { describe, it, expect } from 'vitest'
 import { calcCapacity, calcUnitCost } from '../../../src/engine/production'
 
-describe('calcCapacity v2 — S-кривая', () => {
-  it('при малом equipment (30000) — мощность ниже базовой', () => {
+describe('calcCapacity — логарифмическая формула из ТЗ', () => {
+  it('при начальном equipment=100000 → capacity = 1000', () => {
+    // capitalRatio = 1.0, ln(1) = 0, multiplier = 1.0
+    const cap = calcCapacity(100000)
+    expect(cap).toBe(1000)
+  })
+
+  it('при малом equipment (30000) → capacity ниже 1000', () => {
     const cap = calcCapacity(30000)
-    expect(cap).toBeLessThan(800)
+    expect(cap).toBeLessThan(1000)
     expect(cap).toBeGreaterThanOrEqual(200)
   })
 
-  it('при стандартном equipment (100000) — мощность ~1000', () => {
-    const cap = calcCapacity(100000)
-    expect(cap).toBeGreaterThan(800)
-    expect(cap).toBeLessThan(1200)
-  })
-
-  it('при высоком equipment (200000) — мощность растёт', () => {
+  it('при высоком equipment (200000) → capacity растёт (убывающая отдача)', () => {
     const cap = calcCapacity(200000)
-    expect(cap).toBeGreaterThan(1200)
+    expect(cap).toBeGreaterThan(1000)
   })
 
-  it('при очень высоком equipment (500000) — рост замедляется (S-кривая)', () => {
+  it('убывающая отдача: прирост от 100K→200K > прирост от 200K→300K', () => {
+    const cap100 = calcCapacity(100000)
     const cap200 = calcCapacity(200000)
-    const cap350 = calcCapacity(350000)
-    const cap500 = calcCapacity(500000)
-    // Прирост 200→350 > прирост 350→500 (убывающая отдача)
-    const gain1 = cap350 - cap200
-    const gain2 = cap500 - cap350
+    const cap300 = calcCapacity(300000)
+    const gain1 = cap200 - cap100
+    const gain2 = cap300 - cap200
     expect(gain2).toBeLessThan(gain1)
   })
 
@@ -35,10 +34,11 @@ describe('calcCapacity v2 — S-кривая', () => {
   })
 })
 
-describe('calcUnitCost v2 — R&D с S-кривой и минимальным шагом', () => {
-  it('при малом rdAccumulated — rdEfficiency >= 0.1% (MIN_RD_STEP)', () => {
-    const result = calcUnitCost(500, 1000, 100000, 100)
-    expect(result.rdEfficiency).toBeGreaterThanOrEqual(0.001)
+describe('calcUnitCost — линейная R&D эффективность', () => {
+  it('rdEfficiency = rdAccumulated / RD_EFFICIENCY_SCALE (линейно)', () => {
+    // rdAccumulated=10000 → rdEfficiency = 10000/100000 = 0.10
+    const result = calcUnitCost(500, 1000, 100000, 10000)
+    expect(result.rdEfficiency).toBeCloseTo(0.1, 5)
   })
 
   it('при rdAccumulated=0 — rdEfficiency = 0', () => {
@@ -46,26 +46,21 @@ describe('calcUnitCost v2 — R&D с S-кривой и минимальным ш
     expect(result.rdEfficiency).toBe(0)
   })
 
-  it('при среднем rdAccumulated (50000) — rdEfficiency ~15%', () => {
-    const result = calcUnitCost(500, 1000, 100000, 50000)
-    expect(result.rdEfficiency).toBeGreaterThan(0.1)
-    expect(result.rdEfficiency).toBeLessThan(0.22)
+  it('rdEfficiency capped at MAX_RD_EFFICIENCY = 0.30', () => {
+    // rdAccumulated = 500000 → 500000/100000 = 5.0, capped at 0.30
+    const result = calcUnitCost(500, 1000, 100000, 500000)
+    expect(result.rdEfficiency).toBe(0.3)
   })
 
-  it('при высоком rdAccumulated (200000) — rdEfficiency близка к максимуму', () => {
-    const result = calcUnitCost(500, 1000, 100000, 200000)
-    expect(result.rdEfficiency).toBeGreaterThan(0.25)
-    expect(result.rdEfficiency).toBeLessThanOrEqual(0.3)
+  it('высокий rdAccumulated снижает variableCostPerUnit', () => {
+    const low = calcUnitCost(1000, 1000, 100000, 1000)
+    const high = calcUnitCost(1000, 1000, 100000, 100000)
+    expect(high.variableCostPerUnit).toBeLessThan(low.variableCostPerUnit)
   })
 
-  it('S-кривая: темп роста сначала увеличивается, потом замедляется', () => {
-    const eff50k = calcUnitCost(500, 1000, 100000, 50000).rdEfficiency
-    const eff100k = calcUnitCost(500, 1000, 100000, 100000).rdEfficiency
-    const eff200k = calcUnitCost(500, 1000, 100000, 200000).rdEfficiency
-
-    // Прирост 50k→100k vs 100k→200k (второй должен быть меньше — S-кривая)
-    const gain1 = eff100k - eff50k
-    const gain2 = eff200k - eff100k
-    expect(gain2).toBeLessThan(gain1)
+  it('линейная формула: удвоение rdAccumulated удваивает эффект', () => {
+    const eff10k = calcUnitCost(500, 1000, 100000, 10000).rdEfficiency
+    const eff20k = calcUnitCost(500, 1000, 100000, 20000).rdEfficiency
+    expect(eff20k).toBeCloseTo(eff10k * 2, 5)
   })
 })

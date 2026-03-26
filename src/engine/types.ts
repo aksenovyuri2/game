@@ -236,8 +236,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   // Поля для обратной совместимости
   taxRate: 0.25,
   baseMarketSize: 5000,
-  basePrice: 40,
-  baseVariableCost: 10.0,
+  basePrice: 35,
+  baseVariableCost: 12.0,
   fixedCosts: 8000,
   depreciationRate: 0.08,
   storageCostPerUnit: 1.5,
