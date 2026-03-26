@@ -1,80 +1,85 @@
-import type { PeriodResult } from './types'
+import { W_RE, W_DP, W_SP, W_PR, W_MS, W_GR } from './constants'
 
-export interface MPIFactors {
-  retainedEarnings: number // [0, 100]
-  demandPotential: number // [0, 100]
-  supplyPotential: number // [0, 100]
-  productivity: number // [0, 100]
-  marketShare: number // [0, 100]
-  growth: number // [0, 100]
-}
-
-const WEIGHTS: Record<keyof MPIFactors, number> = {
-  retainedEarnings: 0.35,
-  demandPotential: 0.15,
-  supplyPotential: 0.15,
-  productivity: 0.15,
-  marketShare: 0.1,
-  growth: 0.1,
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
+export interface MPIInput {
+  retainedEarnings: number
+  cas: number
+  capacity: number
+  inventory: number
+  revenue: number
+  totalCosts: number
+  unitsSold: number
+  totalUnitsSold: number
+  prevRevenue: number
+  period: number
+  allRetainedEarnings: number[]
+  allCAS: number[]
+  allSupplyPotentials: number[]
+  allProductivities: number[]
 }
 
 /**
- * Рассчитывает 6 факторов MPI, каждый в диапазоне [0, 100].
+ * Рассчитывает MPI (Management Performance Index) для одной компании.
+ * Шкала: 0–1000.
+ * Этап 10 конвейера.
  */
-export function calcMPIFactors(result: PeriodResult): MPIFactors {
-  const retainedEarnings = clamp((result.newRetainedEarnings / 500000) * 100, 0, 100)
-
-  // demandPotential: насколько компания привлекательна для рынка
-  const marketingNorm = clamp(result.marketingExpense / 50000, 0, 3)
-  const rdNorm = clamp(result.newRdAccumulated / 100000, 0, 3)
-  const demandPotential = clamp(
-    (1 + 0.3 * Math.sqrt(marketingNorm)) * (1 + 0.2 * Math.sqrt(rdNorm)) * 40,
-    0,
-    100
-  )
-
-  // supplyPotential: производственный потенциал
-  const supplyPotential = clamp((result.newEquipment / 200000) * 100, 0, 100)
-
-  // productivity: эффективность (revenue / totalCosts ratio)
-  const totalCosts =
-    result.cogs +
-    result.fixedCosts +
-    result.marketingExpense +
-    result.rdExpense +
-    result.depreciation +
-    result.storageCost
-  const productivity =
-    totalCosts > 0 ? clamp((result.revenue / (result.revenue + totalCosts)) * 200, 0, 100) : 0
-
-  // marketShare: доля рынка в %
-  const marketShare = clamp(result.marketShare * 100, 0, 100)
-
-  // growth: прибыльность периода
-  const growth = clamp(50 + (result.netProfit / 50000) * 50, 0, 100)
-
-  return {
+export function calcMPI(input: MPIInput): number {
+  const {
     retainedEarnings,
-    demandPotential,
-    supplyPotential,
-    productivity,
-    marketShare,
-    growth,
-  }
-}
+    cas,
+    capacity,
+    inventory,
+    revenue,
+    totalCosts,
+    unitsSold,
+    totalUnitsSold,
+    prevRevenue,
+    period,
+    allRetainedEarnings,
+    allCAS,
+    allSupplyPotentials,
+    allProductivities,
+  } = input
 
-/**
- * Рассчитывает итоговый MPI [0, 100] как взвешенную сумму 6 факторов.
- */
-export function calcMPI(result: PeriodResult): number {
-  const factors = calcMPIFactors(result)
-  const mpi = (Object.keys(WEIGHTS) as (keyof MPIFactors)[]).reduce(
-    (sum, key) => sum + factors[key] * WEIGHTS[key],
-    0
-  )
-  return clamp(mpi, 0, 100)
+  // f_RE — Retained Earnings
+  const maxRE = Math.max(...allRetainedEarnings)
+  const minRE = Math.min(...allRetainedEarnings)
+  let f_RE: number
+  if (maxRE === minRE) {
+    f_RE = 0.5
+  } else {
+    f_RE = (retainedEarnings - minRE) / (maxRE - minRE)
+  }
+  if (retainedEarnings < 0) {
+    f_RE *= 0.8
+  }
+
+  // f_DP — Demand Potential (CAS relative)
+  const maxCAS = Math.max(...allCAS)
+  const f_DP = maxCAS > 0 ? cas / maxCAS : 0.5
+
+  // f_SP — Supply Potential
+  const supplyPotential = capacity * 0.7 + inventory * 0.3
+  const maxSP = Math.max(...allSupplyPotentials)
+  const f_SP = maxSP > 0 ? supplyPotential / maxSP : 0.5
+
+  // f_PR — Productivity
+  const productivity = revenue / Math.max(totalCosts, 1)
+  const maxPR = Math.max(...allProductivities, 0.01)
+  const f_PR = productivity / maxPR
+
+  // f_MS — Market Share
+  const f_MS = totalUnitsSold > 0 ? unitsSold / totalUnitsSold : 0
+
+  // f_GR — Growth
+  let f_GR: number
+  if (period === 1) {
+    f_GR = 0.5
+  } else {
+    const growthRatio = revenue / Math.max(prevRevenue, 1)
+    f_GR = Math.max(0, Math.min(1, (growthRatio - 0.5) / 1.5))
+  }
+
+  const rawMPI = W_RE * f_RE + W_DP * f_DP + W_SP * f_SP + W_PR * f_PR + W_MS * f_MS + W_GR * f_GR
+
+  return Math.max(0, Math.round(rawMPI * 1000))
 }

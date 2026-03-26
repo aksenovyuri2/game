@@ -1,78 +1,162 @@
+import { REDISTRIBUTION_RATE, SPOILAGE_RATE } from './constants'
 import type { Decisions, GameConfig, MarketScenario } from './types'
 
+export interface SalesResult {
+  unitsSold: number
+  newInventory: number
+  spoilage: number
+  unmetDemand: number
+}
+
 /**
- * Рассчитывает конкурентные оценки для каждой компании.
- * Оценка = priceScore * marketingScore * rdScore
+ * Распределяет рыночный спрос по компаниям пропорционально их CAS.
+ * Этап 5 конвейера.
+ * Коррекция остатка: sum(companyDemand) == totalMarketDemand
  */
+export function distributeMarketDemand(cas: number[], totalMarketDemand: number): number[] {
+  const totalCAS = cas.reduce((a, b) => a + b, 0)
+  if (totalCAS <= 0) {
+    const equal = Math.floor(totalMarketDemand / cas.length)
+    return cas.map(() => equal)
+  }
+
+  // Базовое деление
+  const demands = cas.map((c) => Math.floor((totalMarketDemand * c) / totalCAS))
+  const sum = demands.reduce((a, b) => a + b, 0)
+  let remainder = totalMarketDemand - sum
+
+  // Распределяем остаток по компаниям с наибольшим CAS
+  if (remainder > 0) {
+    const indexed = cas.map((c, i) => ({ c, i })).sort((a, b) => b.c - a.c)
+    for (const { i } of indexed) {
+      if (remainder <= 0) break
+      demands[i]! += 1
+      remainder -= 1
+    }
+  }
+
+  return demands
+}
+
+/**
+ * Рассчитывает продажи, запасы и порчу для одной компании.
+ * Этап 6 конвейера.
+ */
+export function calcSalesAndSpoilage(
+  demand: number,
+  prevInventory: number,
+  production: number
+): SalesResult {
+  const available = prevInventory + production
+  const unitsSold = Math.min(demand, available)
+  const unmetDemand = Math.max(0, demand - available)
+  const rawInventory = available - unitsSold
+
+  const spoilage = Math.floor(rawInventory * SPOILAGE_RATE)
+  const newInventory = rawInventory - spoilage
+
+  return { unitsSold, newInventory, spoilage, unmetDemand }
+}
+
+/**
+ * Перераспределяет неудовлетворённый спрос к компаниям с запасами.
+ * 60% неудовлетворённого спроса → компании с surplus, пропорционально CAS.
+ * Этап 6 конвейера.
+ */
+export function redistributeUnmetDemand(
+  unmetDemand: number[],
+  cas: number[],
+  inventories: number[]
+): number[] {
+  const totalUnmet = unmetDemand.reduce((a, b) => a + b, 0)
+  if (totalUnmet <= 0) return unmetDemand.map(() => 0)
+
+  const redistributed = totalUnmet * REDISTRIBUTION_RATE
+
+  // Компании с запасами
+  const surplusIndices = inventories.map((inv, i) => (inv > 0 ? i : -1)).filter((i) => i >= 0)
+  if (surplusIndices.length === 0) return unmetDemand.map(() => 0)
+
+  const totalSurplusCAS = surplusIndices.reduce((s, i) => s + (cas[i] ?? 0), 0)
+  if (totalSurplusCAS <= 0) return unmetDemand.map(() => 0)
+
+  const extraSales = unmetDemand.map(() => 0)
+
+  for (const i of surplusIndices) {
+    const share = (cas[i] ?? 0) / totalSurplusCAS
+    const extraDemand = Math.floor(redistributed * share)
+    const extraSold = Math.min(extraDemand, inventories[i] ?? 0)
+    extraSales[i] = extraSold
+  }
+
+  return extraSales
+}
+
+// ─── Устаревшие функции (совместимость со старым кодом) ───────────────────────
+
+/** @deprecated Use calcCAS from cas.ts */
 export function calcCompetitiveScores(
-  decisions: Decisions[],
+  decisions: Array<Decisions>,
   rdAccumulated: number[],
   cfg: GameConfig
 ): number[] {
+  void cfg
+  const prices = decisions.map((d) => d.price)
+  const marketings = decisions.map((d) => d.marketing ?? 0)
+  const totalMkt = marketings.reduce((a, b) => a + b, 0)
+  const totalRd = rdAccumulated.reduce((a, b) => a + b, 0)
   return decisions.map((d, i) => {
-    const priceScore = Math.pow(cfg.basePrice / Math.max(d.price, 1), cfg.priceElasticity)
-    const marketingScore = 1 + cfg.marketingAlpha * Math.sqrt(d.marketing / 10000)
-    const rdScore = 1 + cfg.rdBeta * Math.sqrt((rdAccumulated[i] ?? 0) / 50000)
-    return priceScore * marketingScore * rdScore
+    const maxPrice = Math.max(...prices)
+    const priceFactor = maxPrice > 0 ? (maxPrice - d.price) / maxPrice + 0.5 : 0.5
+    const mktFactor = totalMkt > 0 ? ((d.marketing ?? 0) / totalMkt) * decisions.length : 1
+    const rdFactor = totalRd > 0 ? ((rdAccumulated[i] ?? 0) / totalRd) * decisions.length : 1
+    return Math.max(0.01, priceFactor * 0.5 + mktFactor * 0.3 + rdFactor * 0.2)
   })
 }
 
-/**
- * Рассчитывает рыночную долю каждой компании.
- * При нулевой сумме всех оценок — равные доли.
- */
+/** @deprecated Use distributeMarketDemand */
 export function calcMarketShares(scores: number[]): number[] {
   const total = scores.reduce((a, b) => a + b, 0)
-  if (total === 0) {
-    const equal = 1 / scores.length
-    return scores.map(() => equal)
-  }
+  if (total <= 0) return scores.map(() => 1 / scores.length)
   return scores.map((s) => s / total)
 }
 
-/**
- * Рассчитывает макроэкономический коэффициент.
- * @param seed - для детерминированного random (используется номер периода * seed)
- */
-export function calcMacroFactor(scenario: MarketScenario, period: number, seed: number): number {
-  switch (scenario) {
-    case 'stable':
-      return 1.0
-    case 'growing':
-      return 1.0 + 0.03 * period
-    case 'crisis':
-      return Math.max(0.4, 1.0 - 0.05 * period)
-    case 'random': {
-      // Детерминированный pseudo-random: sin-based
-      const raw = Math.sin(seed * 9301 + period * 49297 + 233) * 0.5 + 0.5
-      // Диапазон [0.7, 1.3]
-      return 0.7 + raw * 0.6
-    }
-  }
-}
-
-/**
- * Рассчитывает спрос для каждой компании на период.
- */
+/** @deprecated Use calcTotalMarketDemand from demand.ts */
 export function calcDemandForCompanies(
   shares: number[],
   macroFactor: number,
   cfg: GameConfig
 ): number[] {
-  const totalDemand = cfg.baseMarketSize * macroFactor
-  return shares.map((s) => Math.max(0, totalDemand * s))
+  const base = cfg.baseMarketSize ?? 10000
+  return shares.map((s) => Math.round(base * s * macroFactor))
 }
 
-/**
- * Рассчитывает продажи и остаток на складе.
- */
+/** @deprecated Use calcSalesAndSpoilage */
 export function calcSalesAndInventory(params: {
   prevInventory: number
   produced: number
   demand: number
 }): { unitsSold: number; endInventory: number } {
-  const available = Math.max(0, params.prevInventory) + Math.max(0, params.produced)
-  const unitsSold = Math.min(available, Math.max(0, params.demand))
-  const endInventory = Math.max(0, available - unitsSold)
+  const available = params.prevInventory + params.produced
+  const unitsSold = Math.min(params.demand, available)
+  const endInventory = available - unitsSold
   return { unitsSold, endInventory }
+}
+
+/** @deprecated */
+export function calcMacroFactor(
+  scenario: MarketScenario,
+  period: number,
+  totalPeriods: number,
+  prevFactor?: number
+): number {
+  void prevFactor
+  if (scenario === 'crisis') {
+    const effectivePeriods = totalPeriods > 0 ? totalPeriods : 12
+    const crisisBottom = Math.floor(effectivePeriods * 0.5)
+    if (crisisBottom <= 0 || period >= crisisBottom) return 0.7
+    return 1.0 - 0.3 * (period / crisisBottom)
+  }
+  if (scenario === 'growing') return 1.0 + 0.03 * period
+  return 1.0
 }
