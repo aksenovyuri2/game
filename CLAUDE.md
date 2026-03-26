@@ -97,20 +97,24 @@ bizsim/
 ### Порядок работы над каждой фичей:
 
 **Этап 1 — Plan:**
+
 - Составить подробный план реализации в `PLAN.md`
 - Описать: файлы, интерфейсы, зависимости, краевые случаи
 - Дождаться утверждения перед написанием кода
 
 **Этап 2 — Tests (Red):**
+
 - Написать юнит-тесты (Vitest) ДО реализации
 - Тесты описывают ожидаемое поведение: вход/выход, граничные значения
 - Все тесты должны ПАДАТЬ на этом этапе
 
 **Этап 3 — Code (Green):**
+
 - Написать минимальную реализацию, чтобы все тесты стали зелёными
 - Не добавлять функциональность сверх того, что покрыто тестами
 
 **Этап 4 — Refactor:**
+
 - Рефакторинг без поломки тестов
 - Коммит в GitHub → автодеплой Vercel
 
@@ -129,18 +133,21 @@ npm run format       # Форматирование
 ## Конвенции кода
 
 ### Именование
+
 - Файлы компонентов: `PascalCase.tsx` (например `GameScreen.tsx`)
 - Файлы логики: `camelCase.ts` (например `simulation.ts`)
 - Тесты: `*.test.ts` / `*.test.tsx` рядом с файлом или в `tests/`
 - Типы/интерфейсы: `PascalCase`, префикс `I` не используется
 
 ### TypeScript
+
 - Strict mode обязателен
 - Запрещено: `any`, `@ts-ignore`, `as unknown as`
 - Все функции должны иметь явные типы параметров и возвращаемого значения
 - Интерфейсы модели определены в `src/engine/types.ts`
 
 ### Коммиты (Conventional Commits)
+
 ```
 feat: добавить расчёт MPI
 fix: исправить формулу себестоимости при нулевом производстве
@@ -150,6 +157,7 @@ docs: обновить PLAN.md
 ```
 
 ### Компоненты React
+
 - Только функциональные компоненты с хуками
 - Экспорт: `export default` для экранов, именованный для компонентов
 - Стилизация: только Tailwind-классы, никаких CSS-файлов
@@ -171,38 +179,38 @@ docs: обновить PLAN.md
 
 ```typescript
 interface Decisions {
-  price: number;          // Цена за единицу (УДЕ)
-  production: number;     // Объём производства (шт.)
-  marketing: number;      // Бюджет на маркетинг (УДЕ)
-  capitalInvestment: number; // Капитальные инвестиции (УДЕ)
-  rd: number;             // НИОКР (УДЕ)
+  price: number // Цена за единицу (УДЕ)
+  production: number // Объём производства (шт.)
+  marketing: number // Бюджет на маркетинг (УДЕ)
+  capitalInvestment: number // Капитальные инвестиции (УДЕ)
+  rd: number // НИОКР (УДЕ)
 }
 
 interface CompanyState {
-  name: string;
-  decisions: Decisions;
-  cash: number;
-  inventory: number;
-  equipment: number;
-  rdAccumulated: number;
-  retainedEarnings: number;
+  name: string
+  decisions: Decisions
+  cash: number
+  inventory: number
+  equipment: number
+  rdAccumulated: number
+  retainedEarnings: number
   // ... финансовые показатели
 }
 
 interface PeriodResult {
-  revenue: number;
-  costOfGoods: number;
-  grossProfit: number;
-  netProfit: number;
-  marketShare: number;
-  unitsSold: number;
-  mpi: number;
+  revenue: number
+  costOfGoods: number
+  grossProfit: number
+  netProfit: number
+  marketShare: number
+  unitsSold: number
+  mpi: number
   // ... отчёт о прибылях и убытках
 }
 
-type Difficulty = 'novice' | 'medium' | 'expert' | 'master';
-type AICharacter = 'cautious' | 'aggressive' | 'balanced' | 'adaptive';
-type MarketScenario = 'stable' | 'growing' | 'crisis' | 'random';
+type Difficulty = 'novice' | 'medium' | 'expert' | 'master'
+type AICharacter = 'cautious' | 'aggressive' | 'balanced' | 'adaptive'
+type MarketScenario = 'stable' | 'growing' | 'crisis' | 'random'
 ```
 
 ## Порядок реализации фич

@@ -1,4 +1,4 @@
-// Типы и интерфейсы Simulation Engine
+// Типы и интерфейсы Simulation Engine v2.0
 
 export type Difficulty = 'novice' | 'medium' | 'expert' | 'master'
 export type AICharacter = 'cautious' | 'aggressive' | 'balanced' | 'adaptive'
@@ -6,34 +6,47 @@ export type MarketScenario = 'stable' | 'growing' | 'crisis' | 'random'
 
 /** Решения компании на период */
 export interface Decisions {
-  price: number // Цена за единицу (УДЕ), min 1
-  production: number // Объём производства (шт.), min 0
-  marketing: number // Бюджет на маркетинг (УДЕ), min 0
-  capitalInvestment: number // Капитальные инвестиции (УДЕ), min 0
-  rd: number // НИОКР (УДЕ), min 0
+  price: number // Цена за единицу [10–100], шаг 1
+  production: number // Объём производства [0–capacity×1.5], шаг 10
+  marketing: number // Бюджет на маркетинг [0–30000], шаг 100
+  capex: number // Капитальные инвестиции [0–40000], шаг 100
+  rd: number // НИОКР [0–30000], шаг 100
+  // Алиас для обратной совместимости
+  capitalInvestment?: number
 }
 
 /** Состояние компании между периодами */
 export interface CompanyState {
   id: string
   name: string
-  isHuman: boolean
+  isAI: boolean
+  // Совместимость со старым кодом
+  isHuman?: boolean
   aiCharacter?: AICharacter
-
-  // Финансы
-  cash: number // Денежные средства
-  retainedEarnings: number // Нераспределённая прибыль (накопленная)
-
-  // Производство
-  inventory: number // Остаток продукции на складе (шт.)
-  equipment: number // Стоимость оборудования (УДЕ)
-  rdAccumulated: number // Накопленный R&D-актив (УДЕ)
-
-  // Банкротство
-  isBankrupt: boolean
 
   // Решения текущего периода
   decisions: Decisions
+
+  // Финансы
+  cash: number
+  retainedEarnings: number
+  loanBalance: number
+  creditRating: number // 1.0 = норма, 2.0 = плохо
+
+  // Производство
+  inventory: number
+  equipment: number
+  capacity: number
+  rdAccumulated: number
+
+  // Бренд
+  brandReputation: number // 0–100
+
+  // История
+  salesHistory: number[]
+
+  // Статус
+  isBankrupt: boolean
 }
 
 /** Результаты периода для одной компании */
@@ -43,39 +56,72 @@ export interface PeriodResult {
   // Продажи
   unitsSold: number
   endInventory: number
-  marketShare: number // Доля рынка [0, 1]
+  spoilage: number
+  marketShare: number // [0, 1]
+  companyDemand: number
+  unmetDemand: number
 
-  // Финансы
+  // Себестоимость
+  unitCost: number
+  variableCostPerUnit: number
+  fixedCostPerUnit: number
+
+  // P&L
   revenue: number
-  cogs: number // Себестоимость реализованной продукции
+  costOfGoodsSold: number
   grossProfit: number
-  fixedCosts: number
   marketingExpense: number
   rdExpense: number
   depreciation: number
-  storageCost: number
-  ebit: number // Прибыль до налогов
+  holdingCost: number
+  spoilageCost: number
+  productionOverhead: number
+  operatingProfit: number
+  interestExpense: number
+  profitBeforeTax: number
   tax: number
   netProfit: number
 
   // Баланс
   newCash: number
   newEquipment: number
+  newCapacity: number
   newRdAccumulated: number
+  newBrandReputation: number
   newRetainedEarnings: number
+  newLoanBalance: number
+  newCreditRating: number
 
-  // Индексы
+  // Конкурентность
+  cas: number
+  priceScore: number
+  marketingScore: number
+  qualityScore: number
+  brandScore: number
+
+  // Итог
   mpi: number
-  variableCostPerUnit: number
+
+  // Поля для совместимости с UI
+  cogs?: number
+  grossProfitCompat?: number
+  fixedCosts?: number
+  storageCost?: number
+  ebit?: number
+  newRdAccumulatedCompat?: number
+  newRetainedEarningsCompat?: number
 }
 
-/** Рыночное состояние на начало периода (общее для всех) */
+/** Рыночное состояние */
 export interface MarketState {
   period: number
   totalPeriods: number
   scenario: MarketScenario
-  macroFactor: number // Макроэкономический коэффициент
-  baseMarketSize: number
+  economicMultiplier: number
+  numberOfCompanies: number
+  // Совместимость
+  macroFactor?: number
+  baseMarketSize?: number
 }
 
 /** Результат полного периода симуляции */
@@ -83,58 +129,35 @@ export interface SimulationPeriodResult {
   period: number
   results: PeriodResult[]
   marketState: MarketState
-  // Обновлённые состояния компаний (готовы к следующему периоду)
   updatedCompanyStates: CompanyState[]
-}
-
-/** Конфигурация игры */
-export interface GameConfig {
-  difficulty: Difficulty
-  scenario: MarketScenario
-  totalPeriods: number
-  aiCount: number
-  taxRate: number
-  // Экономические константы
-  baseMarketSize: number
-  basePrice: number
-  baseVariableCost: number
-  fixedCosts: number
-  depreciationRate: number
-  storageCostPerUnit: number
-  priceElasticity: number
-  marketingAlpha: number
-  rdBeta: number
-  rdDecayRate: number
+  totalMarketDemand: number
+  avgPrice: number
 }
 
 // ─── Система событий ─────────────────────────────────────────────────────────
 
-/** Категория события */
 export type EventCategory = 'economy' | 'technology' | 'social' | 'regulation' | 'industry'
 
-/** Эффекты события на экономическую модель */
 export interface EventEffects {
-  demandMultiplier: number // Множитель общего спроса (1.0 = без изменений)
-  priceElasticityMod: number // Аддитивная коррекция ценовой эластичности
-  marketingAlphaMod: number // Аддитивная коррекция эффективности маркетинга
-  rdBetaMod: number // Аддитивная коррекция эффективности R&D
-  variableCostMult: number // Множитель переменных затрат
-  fixedCostMult: number // Множитель постоянных затрат
-  storageCostMult: number // Множитель складских расходов
+  demandMultiplier: number
+  priceElasticityMod: number
+  marketingAlphaMod: number
+  rdBetaMod: number
+  variableCostMult: number
+  fixedCostMult: number
+  storageCostMult: number
 }
 
-/** Определение события (шаблон) */
 export interface MarketEventDef {
   id: string
   category: EventCategory
-  title: string // Краткий заголовок
-  description: string // Новость для игрока (подсказка для решения)
+  title: string
+  description: string
   effects: Partial<EventEffects>
-  minDuration: number // Минимальная длительность в периодах
-  maxDuration: number // Максимальная длительность в периодах
+  minDuration: number
+  maxDuration: number
 }
 
-/** Активное событие в игре */
 export interface ActiveEvent {
   eventId: string
   title: string
@@ -144,49 +167,68 @@ export interface ActiveEvent {
   startPeriod: number
 }
 
-/** Суммарные эффекты всех активных событий */
 export type CombinedEffects = EventEffects
 
 /** Начальные параметры новой компании */
 export interface InitialCompanyParams {
   id: string
   name: string
-  isHuman: boolean
+  isAI?: boolean
+  isHuman?: boolean
   aiCharacter?: AICharacter
+  decisions: Decisions
 }
 
-/** Конфигурация по умолчанию */
+/** Начальное состояние компании (v2.0) */
+export const INITIAL_COMPANY_STATE = {
+  cash: 50000,
+  retainedEarnings: 0,
+  loanBalance: 0,
+  creditRating: 1.0,
+  inventory: 600,
+  equipment: 100000,
+  capacity: 1000,
+  rdAccumulated: 1000,
+  brandReputation: 50.0,
+  salesHistory: [600],
+  isBankrupt: false,
+} as const
+
+/** Конфигурация игры */
+export interface GameConfig {
+  difficulty: Difficulty
+  scenario: MarketScenario
+  totalPeriods: number
+  aiCount: number
+  // Устаревшие поля (для обратной совместимости с событиями и старым кодом)
+  taxRate?: number
+  baseMarketSize?: number
+  basePrice?: number
+  baseVariableCost?: number
+  fixedCosts?: number
+  depreciationRate?: number
+  storageCostPerUnit?: number
+  priceElasticity?: number
+  marketingAlpha?: number
+  rdBeta?: number
+  rdDecayRate?: number
+}
+
 export const DEFAULT_CONFIG: GameConfig = {
   difficulty: 'medium',
   scenario: 'stable',
   totalPeriods: 12,
   aiCount: 4,
-  taxRate: 0.2,
-  baseMarketSize: 10000,
-  basePrice: 100,
-  baseVariableCost: 60,
-  fixedCosts: 50000,
-  depreciationRate: 0.15,
-  storageCostPerUnit: 2,
+  // Поля для обратной совместимости
+  taxRate: 0.25,
+  baseMarketSize: 5000,
+  basePrice: 35,
+  baseVariableCost: 12.0,
+  fixedCosts: 8000,
+  depreciationRate: 0.08,
+  storageCostPerUnit: 1.5,
   priceElasticity: 1.5,
   marketingAlpha: 0.3,
   rdBeta: 0.2,
-  rdDecayRate: 0.1,
+  rdDecayRate: 0.05,
 }
-
-/** Начальное состояние компании */
-export const INITIAL_COMPANY_STATE = {
-  cash: 200000,
-  retainedEarnings: 0,
-  inventory: 0,
-  equipment: 100000,
-  rdAccumulated: 0,
-  isBankrupt: false,
-  decisions: {
-    price: 100,
-    production: 1000,
-    marketing: 10000,
-    capitalInvestment: 10000,
-    rd: 5000,
-  } satisfies Decisions,
-} as const

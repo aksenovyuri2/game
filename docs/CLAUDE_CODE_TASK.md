@@ -7,9 +7,10 @@
 
 ## Контекст
 
-Ты работаешь над проектом BizSim — однопользовательская экономическая симуляция (аналог MESE) на React + TypeScript. 
+Ты работаешь над проектом BizSim — однопользовательская экономическая симуляция (аналог MESE) на React + TypeScript.
 
 Прочитай следующие файлы перед началом работы:
+
 - `CLAUDE.md` — правила проекта, стек, структура, конвенции
 - `docs/SPEC.md` — полное ТЗ
 - `docs/ENGINE.md` — экономическая модель с формулами, все константы, стратегии ИИ
@@ -38,6 +39,7 @@
 После утверждения плана напиши тесты в `tests/unit/engine/`. Покрытие: не менее 90%.
 
 Обязательные тест-файлы:
+
 - `constants.test.ts` — все константы имеют правильные значения и типы
 - `validation.test.ts` — валидация решений (этап 1): границы, округление, значения по умолчанию, пропуск хода
 - `production.test.ts` — мощности, себестоимость, амортизация, эффект масштаба, сверхурочные (этап 2)
@@ -50,6 +52,7 @@
 - `simulation.test.ts` — интеграционный: полный расчёт 1 периода от входа до выхода, прогон 12 периодов с проверкой инвариантов
 
 Каждый тест-файл должен содержать:
+
 - Тесты на нормальные значения
 - Тесты на краевые случаи из ENGINE.md
 - Тесты на инварианты (раздел 15.1 ENGINE.md)
@@ -59,6 +62,7 @@
 ### 1.3. Реализация
 
 Реализуй все модули `src/engine/` чтобы все тесты стали зелёными:
+
 - `types.ts` — все интерфейсы
 - `constants.ts` — все 40 констант
 - `validation.ts` — этап 1
@@ -72,6 +76,7 @@
 - `simulation.ts` — главная функция `simulatePeriod(companies, marketState) → PeriodResult[]`
 
 Запусти `npm run test` и убедись что все тесты зелёные. Сделай коммит:
+
 ```
 feat: implement simulation engine with full economic model
 ```
@@ -83,6 +88,7 @@ feat: implement simulation engine with full economic model
 ### 2.1. План
 
 Обнови `PLAN.md` с планом реализации ИИ по разделам 12–14 ENGINE.md:
+
 - Файлы в `src/ai/`
 - Интерфейсы AIConfig, AIMemory, AIDecision
 - Логика каждого характера (CautiousAI, AggressiveAI, BalancedAI, AdaptiveAI)
@@ -109,6 +115,7 @@ feat: implement simulation engine with full economic model
 ### 2.3. Реализация
 
 Реализуй все модули `src/ai/`:
+
 - `types.ts` — AIConfig, AIMemory, AIDecision, PlayerStrategyType
 - `base.ts` — абстрактный AIPlayer (applyNoise, generateErrors, estimateDemand)
 - `cautious.ts` — CautiousAI.plan() по разделу 13.1 ENGINE.md
@@ -119,6 +126,7 @@ feat: implement simulation engine with full economic model
 - `factory.ts` — createAIPlayers(difficulty, count): создание набора ИИ с разными характерами
 
 Запусти тесты, убедись что зелёные. Коммит:
+
 ```
 feat: implement AI opponents with 4 characters and 4 difficulty levels
 ```
@@ -130,6 +138,7 @@ feat: implement AI opponents with 4 characters and 4 difficulty levels
 ### 3.1. План
 
 Обнови `PLAN.md` с планом SEO по `docs/SEO.md`:
+
 - Какие пакеты установить (react-helmet-async, vite-plugin-sitemap, vite-plugin-pwa)
 - Какие файлы создать в `src/seo/` и `public/`
 - Пререндеринг: какие маршруты, какой инструмент
@@ -143,43 +152,51 @@ feat: implement AI opponents with 4 characters and 4 difficulty levels
 Реализуй SEO пошагово:
 
 **Шаг 1: Мета-теги**
+
 - Создай `src/seo/constants.ts` с текстами title, description, OG для каждой страницы (раздел 3 SEO.md)
 - Создай `src/seo/SEOHead.tsx` — компонент на react-helmet-async, принимает page: 'home' | 'help' | 'about' | 'game' | 'results'
 - Добавь `<SEOHead page="..." />` в каждый экран
 
 **Шаг 2: Open Graph**
+
 - Добавь OG-теги в SEOHead (og:title, og:description, og:image, og:url) по разделу 4 SEO.md
 - Добавь Twitter Card теги
 - Создай placeholder `public/og-image.png` (1200×630, можно заглушку)
 
 **Шаг 3: JSON-LD**
+
 - Создай `src/seo/JsonLd.tsx` — компонент для вставки `<script type="application/ld+json">`
 - WebApplication на главной (раздел 5.1 SEO.md)
 - FAQPage на странице справки (раздел 5.2)
 - BreadcrumbList на внутренних страницах (раздел 5.3)
 
 **Шаг 4: Технический SEO**
+
 - Создай `public/robots.txt` (раздел 6.1 SEO.md): Allow /, Disallow /game, /results
 - Установи и настрой vite-plugin-sitemap для автогенерации sitemap.xml (раздел 6.2)
 - Добавь `<link rel="canonical">` в SEOHead
 - Убедись что `<html lang="ru">` в index.html
 
 **Шаг 5: PWA**
+
 - Создай `public/manifest.json` (раздел 11.1 SEO.md)
 - Установи и настрой vite-plugin-pwa (раздел 11.2)
 - Создай placeholder-иконки: favicon.svg, apple-touch-icon.png, icon-192.png, icon-512.png
 
 **Шаг 6: Производительность**
+
 - Настрой React.lazy для игровых экранов (GameScreen, ResultsScreen) — раздел 7.2
 - Проверь что бандл < 500KB gzip
 - Добавь `loading="lazy"` на некритичные изображения
 
 **Шаг 7: Семантика**
+
 - Проверь что каждая страница имеет один `<h1>`, корректную иерархию h2→h3
 - Используй семантические теги: `<header>`, `<main>`, `<nav>`, `<footer>`, `<article>`, `<section>`
 - `alt` на всех изображениях, `aria-label` на иконочных кнопках
 
 Коммит:
+
 ```
 feat: add SEO optimization (meta tags, OG, JSON-LD, PWA, sitemap)
 ```
@@ -189,6 +206,7 @@ feat: add SEO optimization (meta tags, OG, JSON-LD, PWA, sitemap)
 ## Задача 4: Проверка чек-листа SEO
 
 Пройди чек-лист из раздела 12 SEO.md. Для каждого пункта:
+
 - Проверь что выполнен
 - Если нет — исправь
 
@@ -213,6 +231,7 @@ feat: add SEO optimization (meta tags, OG, JSON-LD, PWA, sitemap)
 ```
 
 Коммит:
+
 ```
 fix: complete SEO checklist items
 ```
@@ -224,6 +243,7 @@ fix: complete SEO checklist items
 ### 5.1. Связка Engine + AI + UI
 
 Проверь что:
+
 - `GameScreen` использует `simulatePeriod()` из `src/engine/simulation.ts`
 - ИИ-решения генерируются через `createAIPlayers()` → `.plan()` перед каждым `simulatePeriod()`
 - Сохранение в localStorage работает (gameStore.ts → savesStore.ts)

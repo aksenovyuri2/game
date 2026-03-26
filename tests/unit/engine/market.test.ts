@@ -1,191 +1,187 @@
 import { describe, it, expect } from 'vitest'
 import {
-  calcCompetitiveScores,
-  calcMarketShares,
-  calcMacroFactor,
-  calcDemandForCompanies,
-  calcSalesAndInventory,
-} from '../../../src/engine/market'
-import type { Decisions } from '../../../src/engine/types'
-import { DEFAULT_CONFIG } from '../../../src/engine/types'
+  distributeMarketDemand,
+  calcSalesAndSpoilage,
+  redistributeUnmetDemand,
+} from '@/engine/market'
 
-const cfg = DEFAULT_CONFIG
-
-// ─── calcCompetitiveScores ───────────────────────────────────────────────────
-
-describe('calcCompetitiveScores', () => {
-  it('companies with identical decisions get identical scores', () => {
-    const decisions: Decisions[] = [
-      { price: 100, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-      { price: 100, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-    ]
-    const rdAccumulated = [0, 0]
-    const scores = calcCompetitiveScores(decisions, rdAccumulated, cfg)
-    expect(scores[0]).toBeCloseTo(scores[1]!)
+describe('distributeMarketDemand', () => {
+  it('все CAS одинаковые → равное деление спроса', () => {
+    const cas = [50, 50, 50, 50]
+    const totalDemand = 4000
+    const result = distributeMarketDemand(cas, totalDemand)
+    for (const d of result) {
+      expect(d).toBeCloseTo(1000, 0)
+    }
   })
 
-  it('lower price → higher competitive score', () => {
-    const decisions: Decisions[] = [
-      { price: 80, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-      { price: 120, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-    ]
-    const scores = calcCompetitiveScores(decisions, [0, 0], cfg)
-    expect(scores[0]).toBeGreaterThan(scores[1]!)
+  it('sum(companyDemand) == totalMarketDemand', () => {
+    const cas = [80, 40, 60, 20]
+    const totalDemand = 5000
+    const result = distributeMarketDemand(cas, totalDemand)
+    const sum = result.reduce((a, b) => a + b, 0)
+    expect(sum).toBe(totalDemand)
   })
 
-  it('higher marketing → higher competitive score', () => {
-    const decisions: Decisions[] = [
-      { price: 100, production: 1000, marketing: 30000, capitalInvestment: 0, rd: 0 },
-      { price: 100, production: 1000, marketing: 5000, capitalInvestment: 0, rd: 0 },
-    ]
-    const scores = calcCompetitiveScores(decisions, [0, 0], cfg)
-    expect(scores[0]).toBeGreaterThan(scores[1]!)
+  it('высокий CAS → больше спроса', () => {
+    const cas = [80, 40]
+    const totalDemand = 1200
+    const result = distributeMarketDemand(cas, totalDemand)
+    expect(result[0]).toBeGreaterThan(result[1]!)
   })
 
-  it('higher rdAccumulated → higher competitive score', () => {
-    const decisions: Decisions[] = [
-      { price: 100, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-      { price: 100, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-    ]
-    const scores = calcCompetitiveScores(decisions, [100000, 0], cfg)
-    expect(scores[0]).toBeGreaterThan(scores[1]!)
+  it('дуополия CAS[0]=80, CAS[1]=40 → доли 66.7% / 33.3%', () => {
+    const cas = [80, 40]
+    const totalDemand = 1200
+    const result = distributeMarketDemand(cas, totalDemand)
+    expect(result[0]! / totalDemand).toBeCloseTo(2 / 3, 1)
+    expect(result[1]! / totalDemand).toBeCloseTo(1 / 3, 1)
   })
 
-  it('all scores are positive', () => {
-    const decisions: Decisions[] = [
-      { price: 200, production: 0, marketing: 0, capitalInvestment: 0, rd: 0 },
-    ]
-    const scores = calcCompetitiveScores(decisions, [0], cfg)
-    expect(scores[0]).toBeGreaterThan(0)
+  it('один CAS=0.01, остальные ~60 → минимальный спрос', () => {
+    const cas = [0.01, 60, 60, 60]
+    const totalDemand = 4000
+    const result = distributeMarketDemand(cas, totalDemand)
+    expect(result[0]).toBeLessThan(5) // практически 0
+  })
+
+  it('коррекция остатка: sum точно равна totalDemand', () => {
+    const cas = [33, 67, 50, 80, 45]
+    const totalDemand = 3007
+    const result = distributeMarketDemand(cas, totalDemand)
+    expect(result.reduce((a, b) => a + b, 0)).toBe(3007)
+  })
+
+  it('доли рынка в сумме ≈ 1.0', () => {
+    const cas = [40, 60, 55, 35]
+    const totalDemand = 5000
+    const demands = distributeMarketDemand(cas, totalDemand)
+    const shares = demands.map((d) => d / totalDemand)
+    const sum = shares.reduce((a, b) => a + b, 0)
+    expect(sum).toBeCloseTo(1.0, 3)
   })
 })
 
-// ─── calcMarketShares ────────────────────────────────────────────────────────
+describe('calcSalesAndSpoilage', () => {
+  describe('базовые продажи', () => {
+    it('unitsSold = min(demand, available)', () => {
+      const result = calcSalesAndSpoilage(800, 600, 1000)
+      // available = 600 + 1000 = 1600, demand = 800
+      expect(result.unitsSold).toBe(800)
+    })
 
-describe('calcMarketShares', () => {
-  it('market shares sum to 1', () => {
-    const scores = [2.0, 1.5, 1.0, 0.8, 0.7]
-    const shares = calcMarketShares(scores)
-    const total = shares.reduce((a, b) => a + b, 0)
-    expect(total).toBeCloseTo(1)
+    it('дефицит: unitsSold = available, unmetDemand > 0', () => {
+      const result = calcSalesAndSpoilage(2000, 0, 500)
+      // available = 500, demand = 2000
+      expect(result.unitsSold).toBe(500)
+      expect(result.unmetDemand).toBe(1500)
+    })
+
+    it('production=0, inventory=0 → unitsSold = 0', () => {
+      const result = calcSalesAndSpoilage(1000, 0, 0)
+      expect(result.unitsSold).toBe(0)
+      expect(result.unmetDemand).toBe(1000)
+    })
+
+    it('перепроизводство: newInventory > 0, unmetDemand = 0', () => {
+      const result = calcSalesAndSpoilage(200, 0, 1500)
+      expect(result.unmetDemand).toBe(0)
+      expect(result.newInventory).toBeGreaterThan(0)
+    })
   })
 
-  it('equal scores → equal shares', () => {
-    const scores = [1.0, 1.0, 1.0, 1.0]
-    const shares = calcMarketShares(scores)
-    shares.forEach((s) => expect(s).toBeCloseTo(0.25))
+  describe('inventory инвариант', () => {
+    it('inventory[t-1] + production - unitsSold - spoilage == endInventory', () => {
+      const prevInventory = 300
+      const production = 1000
+      const demand = 800
+      const result = calcSalesAndSpoilage(demand, prevInventory, production)
+      const expected = prevInventory + production - result.unitsSold - result.spoilage
+      expect(result.newInventory).toBe(expected)
+    })
   })
 
-  it('all-zero scores → equal shares (no division by zero)', () => {
-    const shares = calcMarketShares([0, 0, 0])
-    const total = shares.reduce((a, b) => a + b, 0)
-    expect(total).toBeCloseTo(1)
-    shares.forEach((s) => expect(s).toBeCloseTo(1 / 3))
+  describe('spoilage', () => {
+    it('spoilage = floor(newInventory × SPOILAGE_RATE)', () => {
+      // available = 0 + 1500 = 1500, demand = 200
+      // newInventory before spoilage = 1300
+      // spoilage = floor(1300 × 0.05) = 65
+      const result = calcSalesAndSpoilage(200, 0, 1500)
+      expect(result.spoilage).toBe(65)
+    })
+
+    it('нет запасов → spoilage = 0', () => {
+      const result = calcSalesAndSpoilage(1000, 0, 1000)
+      expect(result.spoilage).toBe(0)
+    })
+
+    it('spoilage >= 0', () => {
+      const result = calcSalesAndSpoilage(500, 100, 300)
+      expect(result.spoilage).toBeGreaterThanOrEqual(0)
+    })
   })
 
-  it('shares are in [0, 1]', () => {
-    const scores = [5, 1, 0.1]
-    const shares = calcMarketShares(scores)
-    shares.forEach((s) => {
+  describe('инварианты', () => {
+    it('unitsSold >= 0', () => {
+      const result = calcSalesAndSpoilage(0, 0, 0)
+      expect(result.unitsSold).toBeGreaterThanOrEqual(0)
+    })
+
+    it('newInventory >= 0', () => {
+      const result = calcSalesAndSpoilage(5000, 100, 200)
+      expect(result.newInventory).toBeGreaterThanOrEqual(0)
+    })
+
+    it('unmetDemand >= 0', () => {
+      const result = calcSalesAndSpoilage(100, 0, 500)
+      expect(result.unmetDemand).toBeGreaterThanOrEqual(0)
+    })
+  })
+})
+
+describe('redistributeUnmetDemand', () => {
+  it('перераспределяет 60% неудовлетворённого спроса', () => {
+    const unmetDemand = [1000, 0]
+    const cas = [60, 60]
+    const inventories = [0, 500]
+    const extraSales = redistributeUnmetDemand(unmetDemand, cas, inventories)
+    // redistributed = 1000 × 0.60 = 600
+    // Company 1 имеет запас, продаёт до 500 (ограничено запасами)
+    expect(extraSales[1]).toBeLessThanOrEqual(500)
+    expect(extraSales[0]).toBe(0)
+  })
+
+  it('без дефицита → нет дополнительных продаж', () => {
+    const unmetDemand = [0, 0, 0]
+    const cas = [50, 50, 50]
+    const inventories = [100, 100, 100]
+    const extraSales = redistributeUnmetDemand(unmetDemand, cas, inventories)
+    expect(extraSales.every((s) => s === 0)).toBe(true)
+  })
+
+  it('без запасов у конкурентов → нет перераспределения', () => {
+    const unmetDemand = [500, 0, 0]
+    const cas = [60, 60, 60]
+    const inventories = [0, 0, 0]
+    const extraSales = redistributeUnmetDemand(unmetDemand, cas, inventories)
+    expect(extraSales.every((s) => s === 0)).toBe(true)
+  })
+
+  it('extraSales не превышают доступные запасы', () => {
+    const unmetDemand = [5000, 0]
+    const cas = [60, 60]
+    const inventories = [0, 200]
+    const extraSales = redistributeUnmetDemand(unmetDemand, cas, inventories)
+    expect(extraSales[1]).toBeLessThanOrEqual(200)
+  })
+
+  it('extraSales >= 0 для всех компаний', () => {
+    const unmetDemand = [300, 200, 0]
+    const cas = [40, 60, 80]
+    const inventories = [0, 0, 500]
+    const extraSales = redistributeUnmetDemand(unmetDemand, cas, inventories)
+    for (const s of extraSales) {
       expect(s).toBeGreaterThanOrEqual(0)
-      expect(s).toBeLessThanOrEqual(1)
-    })
-  })
-})
-
-// ─── calcMacroFactor ─────────────────────────────────────────────────────────
-
-describe('calcMacroFactor', () => {
-  it('stable scenario returns 1.0 regardless of period', () => {
-    expect(calcMacroFactor('stable', 1, 0)).toBeCloseTo(1.0)
-    expect(calcMacroFactor('stable', 10, 0)).toBeCloseTo(1.0)
-  })
-
-  it('growing scenario increases over time', () => {
-    const early = calcMacroFactor('growing', 1, 0)
-    const late = calcMacroFactor('growing', 10, 0)
-    expect(late).toBeGreaterThan(early)
-  })
-
-  it('crisis scenario decreases over time but stays above 0.4', () => {
-    const macro = calcMacroFactor('crisis', 12, 0)
-    expect(macro).toBeGreaterThanOrEqual(0.4)
-    expect(macro).toBeLessThan(calcMacroFactor('crisis', 1, 0))
-  })
-
-  it('random scenario uses seed and is in reasonable range', () => {
-    const macro = calcMacroFactor('random', 1, 42)
-    expect(macro).toBeGreaterThan(0.5)
-    expect(macro).toBeLessThan(2.0)
-  })
-})
-
-// ─── calcDemandForCompanies ──────────────────────────────────────────────────
-
-describe('calcDemandForCompanies', () => {
-  it('total demand equals baseMarketSize * macro', () => {
-    const shares = [0.25, 0.25, 0.25, 0.25]
-    const macroFactor = 1.0
-    const demands = calcDemandForCompanies(shares, macroFactor, cfg)
-    const total = demands.reduce((a, b) => a + b, 0)
-    expect(total).toBeCloseTo(cfg.baseMarketSize)
-  })
-
-  it('higher market share → more demand', () => {
-    const shares = [0.6, 0.4]
-    const demands = calcDemandForCompanies(shares, 1.0, cfg)
-    expect(demands[0]).toBeGreaterThan(demands[1]!)
-  })
-
-  it('macro > 1 increases total demand', () => {
-    const shares = [0.5, 0.5]
-    const normalDemand = calcDemandForCompanies(shares, 1.0, cfg)
-    const boostedDemand = calcDemandForCompanies(shares, 1.5, cfg)
-    const totalNormal = normalDemand.reduce((a, b) => a + b, 0)
-    const totalBoosted = boostedDemand.reduce((a, b) => a + b, 0)
-    expect(totalBoosted).toBeGreaterThan(totalNormal)
-  })
-})
-
-// ─── calcSalesAndInventory ───────────────────────────────────────────────────
-
-describe('calcSalesAndInventory', () => {
-  it('sells all demand when supply is sufficient', () => {
-    const result = calcSalesAndInventory({
-      prevInventory: 500,
-      produced: 1000,
-      demand: 800,
-    })
-    expect(result.unitsSold).toBe(800)
-    expect(result.endInventory).toBe(700) // 500 + 1000 - 800
-  })
-
-  it('is supply-constrained when demand > available', () => {
-    const result = calcSalesAndInventory({
-      prevInventory: 100,
-      produced: 200,
-      demand: 500,
-    })
-    expect(result.unitsSold).toBe(300) // inventory + produced
-    expect(result.endInventory).toBe(0)
-  })
-
-  it('endInventory is never negative', () => {
-    const result = calcSalesAndInventory({
-      prevInventory: 0,
-      produced: 100,
-      demand: 1000,
-    })
-    expect(result.endInventory).toBeGreaterThanOrEqual(0)
-  })
-
-  it('zero production and zero inventory → zero sales', () => {
-    const result = calcSalesAndInventory({
-      prevInventory: 0,
-      produced: 0,
-      demand: 500,
-    })
-    expect(result.unitsSold).toBe(0)
-    expect(result.endInventory).toBe(0)
+    }
   })
 })

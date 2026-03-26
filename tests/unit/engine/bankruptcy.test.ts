@@ -25,6 +25,7 @@ describe('Bankruptcy detection', () => {
     // Компания с очень маленьким кешем и высокими расходами
     const poorCompany = makeCompany('poor', {
       cash: 1000, // Очень мало денег
+      equipment: 5000, // Малое оборудование → малый лимит кредита
       decisions: {
         price: 30, // Убыточная цена
         production: 2000,
