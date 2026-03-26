@@ -33,7 +33,7 @@ export function createInitialCompanyState(params: InitialCompanyParams): Company
     isHuman: params.isHuman,
     aiCharacter: params.aiCharacter,
     decisions: params.decisions ?? {
-      price: 35,
+      price: 40,
       production: 800,
       marketing: 5000,
       capex: 5000,

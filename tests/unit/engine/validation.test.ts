@@ -8,7 +8,7 @@ describe('validateDecisions', () => {
   describe('значения по умолчанию', () => {
     it('возвращает DEFAULT_DECISIONS при пустом вводе на период 1', () => {
       const result = validateDecisions({}, BASE_CAPACITY, undefined, 1)
-      expect(result.price).toBe(35)
+      expect(result.price).toBe(40)
       expect(result.production).toBe(800)
       expect(result.marketing).toBe(5000)
       expect(result.capex).toBe(5000)
@@ -154,7 +154,7 @@ describe('validateDecisions', () => {
 
   describe('DEFAULT_DECISIONS', () => {
     it('содержит корректные значения по умолчанию', () => {
-      expect(DEFAULT_DECISIONS.price).toBe(35)
+      expect(DEFAULT_DECISIONS.price).toBe(40)
       expect(DEFAULT_DECISIONS.production).toBe(800)
       expect(DEFAULT_DECISIONS.marketing).toBe(5000)
       expect(DEFAULT_DECISIONS.capex).toBe(5000)

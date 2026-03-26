@@ -81,8 +81,8 @@ describe('constants', () => {
     it('MAINTENANCE_RATE = 0.02', () => {
       expect(MAINTENANCE_RATE).toBe(0.02)
     })
-    it('BASE_VARIABLE_COST = 12.0', () => {
-      expect(BASE_VARIABLE_COST).toBe(12.0)
+    it('BASE_VARIABLE_COST = 10.0', () => {
+      expect(BASE_VARIABLE_COST).toBe(10.0)
     })
     it('MAX_SCALE_DISCOUNT = 0.20', () => {
       expect(MAX_SCALE_DISCOUNT).toBe(0.2)

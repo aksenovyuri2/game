@@ -8,7 +8,7 @@ function makeCompany(id: string, decisions?: Partial<Decisions>): CompanyState {
     name: id,
     isAI: false,
     decisions: {
-      price: 35,
+      price: 40,
       production: 800,
       marketing: 5000,
       capex: 5000,
@@ -145,7 +145,7 @@ describe('simulatePeriod', () => {
   describe('сценарий: все одинаковые', () => {
     it('MPI ≈ 500 для всех при симметричных условиях', () => {
       const decisions: Decisions = {
-        price: 35,
+        price: 40,
         production: 800,
         marketing: 5000,
         capex: 5000,
@@ -165,7 +165,7 @@ describe('simulatePeriod', () => {
 
     it('marketShare ≈ 0.25 при симметричных условиях', () => {
       const decisions: Decisions = {
-        price: 35,
+        price: 40,
         production: 800,
         marketing: 5000,
         capex: 5000,
@@ -187,7 +187,7 @@ describe('simulatePeriod', () => {
         marketing: 0,
         rd: 0,
         capex: 0,
-        price: 35,
+        price: 40,
       })
       const { results, updatedCompanyStates } = simulatePeriod([company], makeMarket(1, 12, 1))
       const r = results[0]!

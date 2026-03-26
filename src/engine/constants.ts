@@ -12,7 +12,7 @@ export const RD_EFFICIENCY_SCALE = 100000
 // Себестоимость
 export const BASE_FIXED_COSTS = 8000
 export const MAINTENANCE_RATE = 0.02
-export const BASE_VARIABLE_COST = 12.0
+export const BASE_VARIABLE_COST = 10.0
 export const MAX_SCALE_DISCOUNT = 0.2
 export const OVERTIME_COST_MULTIPLIER = 0.5
 export const OVERTIME_FIXED_PENALTY = 3.0
@@ -59,7 +59,7 @@ export const LOAN_BUFFER = 5000
 export const REPAYMENT_THRESHOLD = 20000
 
 // Абсолютная кривая спроса (ценовая эластичность)
-export const PRICE_OPTIMAL = 35
+export const PRICE_OPTIMAL = 40
 export const PRICE_ELASTICITY_K = 0.04
 export const PRICE_ABSOLUTE_WEIGHT = 0.6
 export const PRICE_RELATIVE_WEIGHT = 0.4
@@ -75,7 +75,7 @@ export const RD_STEEPNESS = 0.00004
 export const MIN_RD_STEP = 0.001
 
 // CapEx — S-кривая для capacity
-export const CAPEX_MIDPOINT = 150000
+export const CAPEX_MIDPOINT = 145800
 export const CAPEX_STEEPNESS = 0.00002
 
 // Рыночный порог (для 100% capture)

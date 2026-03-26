@@ -8,8 +8,8 @@ describe('calcBrandReputation', () => {
     qualityScore: 50, // rdAcc=15000
     prevQualityScore: 50,
     fulfillmentRate: 1.0,
-    price: 35,
-    avgPrice: 35,
+    price: 40,
+    avgPrice: 40,
   }
 
   describe('нормальные значения', () => {
@@ -36,8 +36,8 @@ describe('calcBrandReputation', () => {
         qualityScore,
         prevQualityScore: qualityScore,
         fulfillmentRate: 1.0,
-        price: 35,
-        avgPrice: 35,
+        price: 40,
+        avgPrice: 40,
       })
       expect(result).toBeCloseTo(49.6, 0)
     })
@@ -54,8 +54,8 @@ describe('calcBrandReputation', () => {
           prevQualityScore: 0,
           // fulfillmentRate < 0.95 → brandFromFulfillment = 0 (чистое затухание)
           fulfillmentRate: 0.9,
-          price: 35,
-          avgPrice: 35,
+          price: 40,
+          avgPrice: 40,
         })
       }
       // 50 × 0.9^12 ≈ 14.3
@@ -86,8 +86,8 @@ describe('calcBrandReputation', () => {
           qualityScore: 0,
           prevQualityScore: 0,
           fulfillmentRate: 0,
-          price: 35,
-          avgPrice: 35,
+          price: 40,
+          avgPrice: 40,
         })
       }
       // Период 1: 50×0.9 - 15×1 = 45 - 15 = 30
@@ -98,15 +98,15 @@ describe('calcBrandReputation', () => {
 
   describe('штраф за завышение цены', () => {
     it('price > avgPrice × 1.4 → brandDamage', () => {
-      const normal = calcBrandReputation({ ...baseParams, price: 35, avgPrice: 35 })
-      const overpriced = calcBrandReputation({ ...baseParams, price: 60, avgPrice: 35 })
-      // 60 > 35 × 1.4 = 49 → штраф
+      const normal = calcBrandReputation({ ...baseParams, price: 40, avgPrice: 40 })
+      const overpriced = calcBrandReputation({ ...baseParams, price: 60, avgPrice: 40 })
+      // 60 > 40 × 1.4 = 56 → штраф
       expect(overpriced).toBeLessThan(normal)
     })
 
     it('price <= avgPrice × 1.4 → нет штрафа за цену', () => {
-      const result = calcBrandReputation({ ...baseParams, price: 48, avgPrice: 35 })
-      // 48 ≈ 35 × 1.37 < 1.4 → нет штрафа
+      const result = calcBrandReputation({ ...baseParams, price: 55, avgPrice: 40 })
+      // 55 < 40 × 1.4 = 56 → нет штрафа
       const normalResult = calcBrandReputation({ ...baseParams })
       expect(result).toBeCloseTo(normalResult, 0)
     })

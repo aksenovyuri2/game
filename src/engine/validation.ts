@@ -1,7 +1,7 @@
 import type { Decisions } from './types'
 
 export const DEFAULT_DECISIONS: Decisions = {
-  price: 35,
+  price: 40,
   production: 800,
   marketing: 5000,
   capex: 5000,

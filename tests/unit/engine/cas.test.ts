@@ -9,7 +9,7 @@ import {
 
 describe('calcPriceScore', () => {
   it('все цены одинаковые (оптимальные) → priceScore высокий для всех', () => {
-    const prices = [35, 35, 35, 35]
+    const prices = [40, 40, 40, 40]
     for (let i = 0; i < prices.length; i++) {
       // Абсолютный компонент: 100 (оптимальная цена), относительный: 50
       // 0.6*100 + 0.4*50 = 80
@@ -31,14 +31,14 @@ describe('calcPriceScore', () => {
     expect(score).toBeLessThan(20)
   })
 
-  it('гибридная формула: оптимальная цена 35 лучше крайних', () => {
-    const prices = [10, 35, 90]
+  it('гибридная формула: оптимальная цена 40 лучше крайних', () => {
+    const prices = [10, 40, 90]
     const score10 = calcPriceScore(10, prices)
-    const score35 = calcPriceScore(35, prices)
+    const score40 = calcPriceScore(40, prices)
     const score90 = calcPriceScore(90, prices)
-    // 35 — оптимальная, должна иметь высокий score
-    expect(score35).toBeGreaterThan(score10)
-    expect(score35).toBeGreaterThan(score90)
+    // 40 — оптимальная, должна иметь высокий score
+    expect(score40).toBeGreaterThan(score10)
+    expect(score40).toBeGreaterThan(score90)
   })
 
   it('с двумя компаниями: цена демпингёра dominates', () => {
