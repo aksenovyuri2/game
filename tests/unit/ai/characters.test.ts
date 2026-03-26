@@ -328,14 +328,10 @@ describe('AdaptiveAI', () => {
     const ai = new AdaptiveAI(masterDifficulty)
 
     const highCompetitorCtx = makeCtx('ai1', masterDifficulty, {
-      competitorDecisions: [
-        { price: 120, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-      ],
+      competitorDecisions: [{ price: 120, production: 1000, marketing: 10000, capex: 0, rd: 0 }],
     })
     const lowCompetitorCtx = makeCtx('ai1', masterDifficulty, {
-      competitorDecisions: [
-        { price: 70, production: 1000, marketing: 10000, capitalInvestment: 0, rd: 0 },
-      ],
+      competitorDecisions: [{ price: 70, production: 1000, marketing: 10000, capex: 0, rd: 0 }],
     })
 
     const dHigh = ai.makeDecisions(highCompetitorCtx)
@@ -370,7 +366,7 @@ describe('AdaptiveAI', () => {
         baseMarketSize: cfg.baseMarketSize,
       },
       competitorDecisions: [
-        { price: 95, production: 2000, marketing: 10000, capitalInvestment: 10000, rd: 5000 },
+        { price: 95, production: 2000, marketing: 10000, capex: 10000, rd: 5000 },
       ],
     })
     const highRDCtx = makeCtx('ai1', masterDifficulty, {
@@ -382,7 +378,7 @@ describe('AdaptiveAI', () => {
         baseMarketSize: cfg.baseMarketSize,
       },
       competitorDecisions: [
-        { price: 95, production: 2000, marketing: 10000, capitalInvestment: 10000, rd: 25000 },
+        { price: 95, production: 2000, marketing: 10000, capex: 10000, rd: 25000 },
       ],
     })
 
@@ -517,12 +513,12 @@ describe('Strategic diversity', () => {
     expect(dCautious.rd).toBeGreaterThan(dCautious.marketing)
 
     // Aggressive: CapEx is primary investment in early phase
-    expect(dAggressive.capitalInvestment).toBeGreaterThan(dAggressive.rd)
+    expect(dAggressive.capex).toBeGreaterThan(dAggressive.rd)
 
     // Balanced: no single investment dominates extremely
-    const balTotal = dBalanced.marketing + dBalanced.capitalInvestment + dBalanced.rd
+    const balTotal = dBalanced.marketing + dBalanced.capex + dBalanced.rd
     expect(dBalanced.marketing / balTotal).toBeGreaterThan(0.2)
-    expect(dBalanced.capitalInvestment / balTotal).toBeGreaterThan(0.2)
+    expect(dBalanced.capex / balTotal).toBeGreaterThan(0.2)
     expect(dBalanced.rd / balTotal).toBeGreaterThan(0.2)
   })
 
@@ -547,8 +543,8 @@ describe('Strategic diversity', () => {
 
     // Master should spend more total (ignoring noise) due to higher strengthMultiplier
     // Compare base spending rates: master str=1.3 vs novice str=0.8
-    const noviceSpend = dNovice.marketing + dNovice.capitalInvestment + dNovice.rd
-    const masterSpend = dMaster.marketing + dMaster.capitalInvestment + dMaster.rd
+    const noviceSpend = dNovice.marketing + dNovice.capex + dNovice.rd
+    const masterSpend = dMaster.marketing + dMaster.capex + dMaster.rd
     // Master should spend noticeably more (accounting for noise on novice)
     expect(masterSpend).toBeGreaterThan(noviceSpend * 0.9)
   })
