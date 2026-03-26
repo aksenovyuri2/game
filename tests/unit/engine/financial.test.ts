@@ -145,12 +145,14 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 50000,
       netProfit: 5000,
+      depreciation: 8000,
       capex: 5000,
       prevLoanBalance: 0,
       prevCreditRating: 1.0,
       equipment: 100000,
     })
-    expect(result.newCash).toBeCloseTo(50000 + 5000 - 5000, 5) // 50000
+    // cash = 50000 + 5000 + 8000 - 5000 = 58000
+    expect(result.newCash).toBeCloseTo(50000 + 5000 + 8000 - 5000, 5)
     expect(result.newLoanBalance).toBe(0)
     expect(result.newCreditRating).toBe(1.0)
   })
@@ -159,6 +161,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 5000,
       netProfit: -20000, // cash станет -15000
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 0,
       prevCreditRating: 1.0,
@@ -176,6 +179,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 5000,
       netProfit: -20000,
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 0,
       prevCreditRating: 1.0,
@@ -188,6 +192,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 5000,
       netProfit: -100000,
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 50000,
       prevCreditRating: 1.9,
@@ -200,6 +205,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 30000,
       netProfit: 10000, // cash = 40000 > REPAYMENT_THRESHOLD
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 10000,
       prevCreditRating: 1.2,
@@ -214,6 +220,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 100000,
       netProfit: 0,
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 5000, // небольшой кредит
       prevCreditRating: 1.4,
@@ -229,6 +236,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 200000,
       netProfit: 0,
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 1000,
       prevCreditRating: 1.0,
@@ -241,6 +249,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 1000,
       netProfit: -20000,
+      depreciation: 0,
       capex: 0,
       prevLoanBalance: 0,
       prevCreditRating: 1.0,
@@ -255,6 +264,7 @@ describe('calcCashAndLoans', () => {
     const result = calcCashAndLoans({
       prevCash: 50000,
       netProfit: -100000,
+      depreciation: 0,
       capex: 10000,
       prevLoanBalance: 20000,
       prevCreditRating: 1.5,
