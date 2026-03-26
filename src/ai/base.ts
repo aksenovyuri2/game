@@ -1,5 +1,5 @@
 import type { Decisions } from '../engine/types'
-import type { AIDecisionContext, DifficultyConfig } from './types'
+import type { AIDecisionContext, DifficultyConfig, GamePhase } from './types'
 
 /**
  * Детерминированный PRNG на основе строкового ключа и числового сида.
@@ -70,6 +70,19 @@ export function clampDecisions(d: Decisions, cash: number): Decisions {
   return { price, production, marketing, capitalInvestment, rd }
 }
 
+/** Определяет фазу игры */
+export function getGamePhase(period: number, totalPeriods: number): GamePhase {
+  const progress = period / totalPeriods
+  if (progress <= 0.33) return 'early'
+  if (progress <= 0.66) return 'mid'
+  return 'late'
+}
+
+/** Рассчитывает себестоимость единицы для заданного уровня оборудования */
+export function estimateVariableCost(equipment: number, baseVariableCost: number): number {
+  return baseVariableCost / (1 + Math.max(0, equipment) / 500000)
+}
+
 /** Абстрактный базовый класс для всех ИИ-стратегий */
 export abstract class BaseAI {
   protected difficulty: DifficultyConfig
@@ -93,5 +106,16 @@ export abstract class BaseAI {
   /** Оценка спроса на основе базового рынка и макро-фактора */
   protected estimateDemand(ctx: AIDecisionContext): number {
     return ctx.cfg.baseMarketSize * ctx.marketState.macroFactor
+  }
+
+  /** Фаза игры: early / mid / late */
+  protected getPhase(ctx: AIDecisionContext): GamePhase {
+    if (!this.difficulty.canUseLongTermPlanning) return 'mid' // без планирования — усреднённое поведение
+    return getGamePhase(ctx.marketState.period, ctx.marketState.totalPeriods)
+  }
+
+  /** Множитель силы сложности */
+  protected get strength(): number {
+    return this.difficulty.strengthMultiplier
   }
 }

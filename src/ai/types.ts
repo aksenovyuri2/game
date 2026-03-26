@@ -13,13 +13,18 @@ export interface AIDecisionContext {
 
 /** Конфигурация уровня сложности */
 export interface DifficultyConfig {
-  /** Амплитуда случайного шума [0, 1]. novice=0.3, medium=0.15, expert=0.05, master=0 */
+  /** Амплитуда случайного шума [0, 1]. novice=0.25, medium=0.10, expert=0.03, master=0 */
   noiseLevel: number
   /** Может ли ИИ анализировать решения конкурентов */
   canAnalyzeCompetitors: boolean
-  /** Использует ли ИИ долгосрочное планирование */
+  /** Использует ли ИИ долгосрочное планирование (фазы игры) */
   canUseLongTermPlanning: boolean
+  /** Множитель силы ИИ: повышает эффективность расходов. novice=0.8, medium=1.0, expert=1.15, master=1.3 */
+  strengthMultiplier: number
 }
+
+/** Фаза игры для стратегического планирования */
+export type GamePhase = 'early' | 'mid' | 'late'
 
 /** Допустимые диапазоны решений */
 export interface DecisionLimits {

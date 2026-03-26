@@ -2,7 +2,9 @@
 
 ## Спецификация
 
-Полное ТЗ проекта: `docs/SPEC.md`
+Полное ТЗ проекта: `docs/SPEC.md`  
+Экономическая модель и ИИ: `docs/ENGINE.md`  
+SEO-оптимизация: `docs/SEO.md`
 
 ## Описание
 
@@ -18,6 +20,7 @@
 - **Сохранение:** localStorage / IndexedDB (Dexie.js)
 - **Тесты:** Vitest (юнит) + Playwright (E2E)
 - **Линтинг:** ESLint + Prettier
+- **SEO:** react-helmet-async, vite-plugin-sitemap, vite-plugin-pwa
 - **Коммиты:** Husky + lint-staged
 - **Репозиторий:** GitHub
 - **Деплой:** Vercel (автодеплой при push в main)
@@ -29,7 +32,9 @@ bizsim/
 ├── CLAUDE.md              # Этот файл
 ├── PLAN.md                # Текущий план разработки
 ├── docs/
-│   └── SPEC.md            # Полное ТЗ проекта
+│   ├── SPEC.md            # Полное ТЗ проекта
+│   ├── ENGINE.md          # Экономическая модель + формулы + стратегии ИИ
+│   └── SEO.md             # ТЗ на SEO-оптимизацию
 ├── src/
 │   ├── app/               # Точка входа, роутинг, провайдеры
 │   ├── components/        # UI-компоненты (shadcn/ui обёртки)
@@ -60,6 +65,10 @@ bizsim/
 │   │   ├── ResultsScreen.tsx
 │   │   └── HelpScreen.tsx
 │   ├── lib/               # Утилиты, хелперы, i18n
+│   ├── seo/               # SEO-компоненты
+│   │   ├── SEOHead.tsx    # Компонент мета-тегов (react-helmet-async)
+│   │   ├── JsonLd.tsx     # JSON-LD структурированные данные
+│   │   └── constants.ts   # SEO-константы (title, description, OG)
 │   └── types/             # Глобальные типы
 ├── tests/
 │   ├── unit/              # Юнит-тесты (Vitest)
@@ -67,6 +76,14 @@ bizsim/
 │   │   └── ai/
 │   └── e2e/               # E2E-тесты (Playwright)
 ├── public/
+│   ├── og-image.png       # OG-превью 1200×630
+│   ├── favicon.svg        # SVG favicon
+│   ├── apple-touch-icon.png
+│   ├── icon-192.png       # PWA иконка
+│   ├── icon-512.png       # PWA иконка
+│   ├── manifest.json      # PWA манифест
+│   ├── robots.txt
+│   └── sitemap.xml        # Генерируется при сборке
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json
@@ -158,6 +175,8 @@ docs: обновить PLAN.md
 
 ## Ключевые интерфейсы (engine/types.ts)
 
+Полная экономическая модель с формулами, коэффициентами и стратегиями ИИ описана в `docs/ENGINE.md`. Ниже — краткая выжимка типов:
+
 ```typescript
 interface Decisions {
   price: number // Цена за единицу (УДЕ)
@@ -201,5 +220,6 @@ type MarketScenario = 'stable' | 'growing' | 'crisis' | 'random'
 3. ИИ-оппоненты (4 характера, 4 уровня) — Plan → Tests → Code
 4. UI: экраны и компоненты — v0.dev → интеграция
 5. Сохранение, онбординг, справка — Plan → Tests → Code
-6. E2E-тесты и балансировка ИИ — Tests → Fix
-7. Полировка и релиз — Refactor → Production Vercel
+6. SEO-оптимизация — по docs/SEO.md (мета-теги, OG, JSON-LD, sitemap, пререндеринг, PWA)
+7. E2E-тесты и балансировка ИИ — Tests → Fix
+8. Полировка и релиз — Refactor → Production Vercel

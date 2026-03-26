@@ -8,6 +8,7 @@ import { DecisionsForm } from '@/components/game/DecisionsForm'
 import { PeriodReport } from '@/components/game/PeriodReport'
 import { RatingTable } from '@/components/game/RatingTable'
 import { HistoryChart } from '@/components/charts/HistoryChart'
+import { NewsPanel } from '@/components/game/NewsPanel'
 import { BubbleTip } from '@/components/ui/bubble-tip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -56,6 +57,8 @@ export default function GameScreen() {
     gameOverReason,
     periodHistory,
     lastPeriodResult,
+    activeEvents,
+    newEventsThisPeriod,
     submitDecisions,
     continueToNextPeriod,
   } = useGameStore()
@@ -238,6 +241,11 @@ export default function GameScreen() {
         </BubbleTip>
 
         {statusBar}
+        <NewsPanel
+          activeEvents={activeEvents}
+          newEvents={newEventsThisPeriod}
+          currentPeriod={currentPeriod}
+        />
         <div className="grid lg:grid-cols-2 gap-5">
           <BubbleTip
             id="decisions-form"
@@ -291,6 +299,11 @@ export default function GameScreen() {
     return (
       <PageLayout title={pageTitle}>
         {statusBar}
+        <NewsPanel
+          activeEvents={activeEvents}
+          newEvents={newEventsThisPeriod}
+          currentPeriod={currentPeriod}
+        />
         {isBankruptcy && (
           <Card className="border-destructive/50 bg-destructive/5 mb-5 hover:shadow-sm">
             <CardContent className="py-5 text-center">

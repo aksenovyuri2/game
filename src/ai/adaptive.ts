@@ -1,59 +1,155 @@
 import type { Decisions } from '../engine/types'
 import type { AIDecisionContext } from './types'
-import { BaseAI } from './base'
-import { BalancedAI } from './balanced'
+import { BaseAI, estimateVariableCost } from './base'
 
 /**
- * AdaptiveAI — адаптивная стратегия (Expert/Master).
- * Анализирует решения конкурентов и историю своей компании.
- * Без данных ведёт себя как BalancedAI.
+ * AdaptiveAI — стратегия "Dynamic Counter-Strategy" (Контр-стратегия).
+ *
+ * Самый интеллектуальный ИИ. Анализирует решения конкурентов, историю своей
+ * компании и динамику рынка. Выбирает оптимальную тактику в зависимости от:
+ * 1. Средних цен конкурентов → undercut или premium
+ * 2. Маркетинговых расходов конкурентов → counter-marketing или перенаправление в R&D
+ * 3. Своего финансового состояния → агрессия при успехе, защита при потерях
+ * 4. Фазы игры → инвестиции в начале, оптимизация в конце
+ *
+ * Без данных о конкурентах — ведёт улучшенную сбалансированную стратегию.
  */
 export class AdaptiveAI extends BaseAI {
-  private fallback: BalancedAI
-
-  constructor(difficulty: import('./types').DifficultyConfig) {
-    super(difficulty)
-    this.fallback = new BalancedAI(difficulty)
-  }
-
   makeDecisions(ctx: AIDecisionContext): Decisions {
     const { companyState: s, cfg } = ctx
     const demand = this.estimateDemand(ctx)
+    const phase = this.getPhase(ctx)
+    const str = this.strength
+    const totalPlayers = cfg.aiCount + 1
+    const variableCost = estimateVariableCost(s.equipment, cfg.baseVariableCost)
 
-    // Базовые параметры от BalancedAI
-    const base = this.fallback.makeDecisions(ctx)
+    // ── Анализ конкурентов ──────────────────────────────────────────────
+    const hasCompetitorData =
+      this.difficulty.canAnalyzeCompetitors &&
+      ctx.competitorDecisions !== undefined &&
+      ctx.competitorDecisions.length > 0
 
-    // Если нет данных — возвращаем базу (finalize уже применён в fallback)
-    if (!this.difficulty.canAnalyzeCompetitors) {
-      return base
+    let avgCompPrice = cfg.basePrice
+    let avgCompMarketing = 10000
+    let competitorsInvestInRD = false
+
+    if (hasCompetitorData) {
+      const comps = ctx.competitorDecisions!
+      avgCompPrice = comps.reduce((sum, d) => sum + d.price, 0) / comps.length
+      avgCompMarketing = comps.reduce((sum, d) => sum + d.marketing, 0) / comps.length
+      const avgCompRD = comps.reduce((sum, d) => sum + d.rd, 0) / comps.length
+      competitorsInvestInRD = avgCompRD > 15000
     }
 
-    let targetPrice = cfg.basePrice * 0.95
-    let marketingMultiplier = 1.0
+    // ── Анализ собственного состояния ────────────────────────────────────
+    const isWinning = s.retainedEarnings > 10000
+    const isLosing = s.retainedEarnings < -20000
+    const hasCostAdvantage = variableCost < cfg.baseVariableCost * 0.85
+    const hasRDAdvantage = s.rdAccumulated > 40000
+    const rdAdvantage = Math.min(1, s.rdAccumulated / 80000)
+    const costAdvantage = Math.max(0, 1 - variableCost / cfg.baseVariableCost)
 
-    // Реакция на цены конкурентов: подрезаем среднюю цену конкурентов на 5%
-    if (ctx.competitorDecisions && ctx.competitorDecisions.length > 0) {
-      const avgCompetitorPrice =
-        ctx.competitorDecisions.reduce((sum, d) => sum + d.price, 0) /
-        ctx.competitorDecisions.length
-      targetPrice = Math.max(1, avgCompetitorPrice * 0.95)
+    // ── Стратегия ценообразования ────────────────────────────────────────
+    let targetPrice: number
+
+    if (hasCompetitorData) {
+      // Адаптивное: подрезаем среднюю цену конкурентов
+      const undercutFactor = isWinning ? 0.94 : 0.92 // сильнее при потерях
+      targetPrice = avgCompPrice * undercutFactor
+    } else {
+      // Без данных: агрессивная цена ниже базы
+      targetPrice = cfg.basePrice * 0.93
     }
 
-    // Реакция на потери: при убытках усиливаем маркетинг
-    if (ctx.companyState.retainedEarnings < 0) {
-      marketingMultiplier = 1.2
+    // Корректировка по фазе
+    switch (phase) {
+      case 'early':
+        targetPrice = Math.max(targetPrice, cfg.basePrice * 0.95) // не слишком низко в начале
+        break
+      case 'mid':
+        targetPrice *= 1 - costAdvantage * 0.05 // используем преимущество по костам
+        break
+      case 'late':
+        targetPrice *= 1 - costAdvantage * 0.08 - rdAdvantage * 0.05
+        break
     }
 
-    const estimatedShare = 1 / 5
-    const production = Math.round(demand * estimatedShare * 1.05)
-    const estRevenue = targetPrice * production
+    targetPrice = Math.max(variableCost * 1.1, targetPrice)
+
+    // ── Стратегия инвестиций ─────────────────────────────────────────────
+    let marketingRate: number
+    let capexRate: number
+    let rdRate: number
+    let productionMult: number
+
+    switch (phase) {
+      case 'early':
+        // Инвестиционная фаза: R&D + capex
+        marketingRate = 0.1 * str
+        capexRate = 0.18 * str
+        rdRate = 0.18 * str
+        productionMult = 0.95
+        break
+      case 'mid':
+        // Адаптация под конкурентов
+        if (hasCompetitorData && avgCompMarketing > 20000) {
+          // Конкуренты тратят на маркетинг — контр-маркетинг + R&D
+          marketingRate = 0.2 * str
+          rdRate = 0.14 * str
+          capexRate = 0.1 * str
+        } else if (competitorsInvestInRD) {
+          // Конкуренты вкладывают в R&D — контр через маркетинг и цену
+          marketingRate = 0.22 * str
+          rdRate = 0.08 * str
+          capexRate = 0.14 * str
+        } else {
+          // Стандартная сбалансированная тактика
+          marketingRate = 0.16 * str
+          capexRate = 0.14 * str
+          rdRate = 0.14 * str
+        }
+        productionMult = 1.1
+        break
+      case 'late':
+        // Максимизация: акцент на маркетинг и объём
+        marketingRate = 0.22 * str
+        capexRate = 0.06 * str
+        rdRate = 0.06 * str
+        productionMult = 1.2
+        break
+    }
+
+    // ── Коррекция при потерях ────────────────────────────────────────────
+    if (isLosing) {
+      marketingRate *= 1.25 // усиление маркетинга при убытках
+      productionMult *= 0.9 // сокращение рисков перепроизводства
+    }
+
+    // ── Коррекция при успехе ─────────────────────────────────────────────
+    if (isWinning && phase !== 'early') {
+      // При успехе — более агрессивное расширение
+      productionMult *= 1.1
+      if (hasCostAdvantage) {
+        // Используем преимущество: ещё ниже цена
+        targetPrice *= 0.97
+      }
+      if (hasRDAdvantage) {
+        // R&D преимущество: переключаемся на маркетинг
+        rdRate *= 0.7
+        marketingRate *= 1.2
+      }
+    }
+
+    // ── Финальный расчёт ────────────────────────────────────────────────
+    const targetShare = (1 / totalPlayers) * (1 + 0.2 * str)
+    const production = Math.round(demand * targetShare * productionMult)
 
     const raw: Decisions = {
       price: targetPrice,
       production,
-      marketing: estRevenue * 0.12 * marketingMultiplier,
-      capitalInvestment: s.equipment * cfg.depreciationRate * 1.2,
-      rd: estRevenue * 0.08,
+      marketing: s.cash * marketingRate,
+      capitalInvestment: s.cash * capexRate,
+      rd: s.cash * rdRate,
     }
 
     return this.finalize(raw, ctx)
