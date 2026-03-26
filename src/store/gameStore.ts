@@ -1,11 +1,10 @@
 import { create } from 'zustand'
-import { runPeriod, createInitialCompanyState } from '../engine/simulation'
+import { simulatePeriod, createInitialCompanyState } from '../engine/simulation'
 import { calcMacroFactor } from '../engine/market'
 import { combineEventEffects, generateNewEvents, tickEvents } from '../engine/events'
 import { createAIPlayer, assignAICharacters } from '../ai/difficulty'
 import {
   DEFAULT_CONFIG,
-  INITIAL_COMPANY_STATE,
   type ActiveEvent,
   type AICharacter,
   type CompanyState,
@@ -17,6 +16,7 @@ import {
   type SimulationPeriodResult,
   type StartingCashPreset,
 } from '../engine/types'
+import { DEFAULT_DECISIONS } from '../engine/validation'
 
 export type GamePhase = 'idle' | 'deciding' | 'period-result' | 'game-over'
 export type GameOverReason = 'completed' | 'bankruptcy' | null
@@ -166,7 +166,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               const prevCompany = prevPeriodResult.updatedCompanyStates.find(
                 (s) => s.id === r.companyId
               )
-              return prevCompany?.decisions ?? INITIAL_COMPANY_STATE.decisions
+              return prevCompany?.decisions ?? DEFAULT_DECISIONS
             })
         : undefined
 
@@ -186,7 +186,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const combinedEffects = combineEventEffects(activeEvents)
 
     const market = buildMarketState(config, currentPeriod, gameSeed)
-    const result = runPeriod(withAIDecisions, market, config, combinedEffects)
+    const result = simulatePeriod(withAIDecisions, market, combinedEffects)
 
     // Проверяем банкротство игрока
     const playerState = result.updatedCompanyStates.find((c) => c.id === playerCompanyId)
@@ -298,11 +298,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 }))
 
 function buildMarketState(cfg: GameConfig, period: number, seed: number): MarketState {
+  const macroFactor = calcMacroFactor(cfg.scenario, period, seed)
   return {
     period,
     totalPeriods: cfg.totalPeriods,
     scenario: cfg.scenario,
-    macroFactor: calcMacroFactor(cfg.scenario, period, seed),
+    economicMultiplier: macroFactor,
+    numberOfCompanies: cfg.aiCount + 1,
+    macroFactor,
     baseMarketSize: cfg.baseMarketSize,
   }
 }

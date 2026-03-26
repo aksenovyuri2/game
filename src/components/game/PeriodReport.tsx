@@ -61,17 +61,22 @@ export function PeriodReport({ result, companyName }: PeriodReportProps) {
         <div>
           <SectionHeader label="Финансовый результат (УДЕ)" />
           <Row label="Выручка" value={formatMoney(result.revenue)} />
-          <Row label="Себестоимость" value={`−${formatMoney(result.cogs)}`} />
-          <Row label="Валовая прибыль" value={formatMoney(result.grossProfit)} bold />
-          <Row label="Постоянные затраты" value={`−${formatMoney(result.fixedCosts)}`} />
-          <Row label="Маркетинг" value={`−${formatMoney(result.marketingExpense)}`} />
-          <Row label="НИОКР" value={`−${formatMoney(result.rdExpense)}`} />
-          <Row label="Амортизация" value={`−${formatMoney(result.depreciation)}`} />
-          <Row label="Складские расходы" value={`−${formatMoney(result.storageCost)}`} />
           <Row
-            label="EBIT"
-            value={formatMoney(result.ebit)}
-            highlight={result.ebit >= 0 ? 'positive' : 'negative'}
+            label="Себестоимость"
+            value={`−${formatMoney(result.costOfGoodsSold ?? result.cogs ?? 0)}`}
+          />
+          <Row label="Валовая прибыль" value={formatMoney(result.grossProfit)} bold />
+          <Row label="Маркетинг" value={`−${formatMoney(result.marketingExpense ?? 0)}`} />
+          <Row label="НИОКР" value={`−${formatMoney(result.rdExpense ?? 0)}`} />
+          <Row label="Амортизация" value={`−${formatMoney(result.depreciation ?? 0)}`} />
+          <Row
+            label="Складские расходы"
+            value={`−${formatMoney(result.holdingCost ?? result.storageCost ?? 0)}`}
+          />
+          <Row
+            label="Операционная прибыль"
+            value={formatMoney(result.operatingProfit ?? result.ebit ?? 0)}
+            highlight={(result.operatingProfit ?? result.ebit ?? 0) >= 0 ? 'positive' : 'negative'}
             bold
           />
           <Row label="Налог (20%)" value={`−${formatMoney(result.tax)}`} />

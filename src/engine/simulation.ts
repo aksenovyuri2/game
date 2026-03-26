@@ -1,5 +1,6 @@
 import type {
   CompanyState,
+  EventEffects,
   MarketState,
   PeriodResult,
   SimulationPeriodResult,
@@ -95,19 +96,36 @@ function makeZeroResult(c: CompanyState): PeriodResult {
   }
 }
 
+/** Нейтральные эффекты (без модификаций) */
+const NEUTRAL: EventEffects = {
+  demandMultiplier: 1,
+  priceElasticityMod: 0,
+  marketingAlphaMod: 0,
+  rdBetaMod: 0,
+  variableCostMult: 1,
+  fixedCostMult: 1,
+  storageCostMult: 1,
+}
+
 /**
  * Выполняет расчёт одного периода симуляции (10-этапный конвейер).
+ * @param eventEffects — суммарные эффекты активных событий (опционально)
  */
 export function simulatePeriod(
   companies: CompanyState[],
-  market: MarketState
+  market: MarketState,
+  eventEffects?: Partial<EventEffects>
 ): SimulationPeriodResult {
+  const fx: EventEffects = { ...NEUTRAL, ...eventEffects }
   const { period, totalPeriods, scenario } = market
   const numberOfCompanies = market.numberOfCompanies ?? companies.length
 
   const prevMultiplier = market.economicMultiplier ?? market.macroFactor ?? 1.0
   const economicMultiplier = calcEconomicMultiplier(scenario, period, totalPeriods, prevMultiplier)
-  const totalMarketDemand = calcTotalMarketDemand(numberOfCompanies, economicMultiplier)
+  const totalMarketDemand = calcTotalMarketDemand(
+    numberOfCompanies,
+    economicMultiplier * fx.demandMultiplier
+  )
 
   // Separate active vs bankrupt
   const activeIdx: number[] = []
@@ -147,9 +165,23 @@ export function simulatePeriod(
   const newRdAccumulateds = activeCompanies.map((c, i) =>
     calcRdAccumulated(c.rdAccumulated, validatedDecisions[i]!.rd)
   )
-  const unitCostResults = activeCompanies.map((c, i) =>
-    calcUnitCost(validatedDecisions[i]!.production, c.capacity, c.equipment, c.rdAccumulated)
-  )
+  const unitCostResults = activeCompanies.map((c, i) => {
+    const result = calcUnitCost(
+      validatedDecisions[i]!.production,
+      c.capacity,
+      c.equipment,
+      c.rdAccumulated
+    )
+    // Применяем эффекты событий к себестоимости
+    const adjVariable = result.variableCostPerUnit * fx.variableCostMult
+    const adjFixed = result.fixedCostPerUnit * fx.fixedCostMult
+    return {
+      ...result,
+      variableCostPerUnit: adjVariable,
+      fixedCostPerUnit: adjFixed,
+      unitCost: adjVariable + adjFixed,
+    }
+  })
 
   // ─── Этап 4: CAS для активных компаний ───────────────────────────────────
   const allPrices = validatedDecisions.map((d) => d.price)
@@ -180,9 +212,9 @@ export function simulatePeriod(
   const finalUnitsSold = salesResults.map((r, i) => r.unitsSold + (extraSales[i] ?? 0))
   const finalInventories = salesResults.map((r, i) => r.newInventory - (extraSales[i] ?? 0))
 
-  // ─── Этап 7: P&L ─────────────────────────────────────────────────────────
-  const pnlResults = activeCompanies.map((c, i) =>
-    calcPnL({
+  // ─── Этап 7: P&L (с учётом эффектов событий) ────────────────────────────
+  const pnlResults = activeCompanies.map((c, i) => {
+    const raw = calcPnL({
       unitsSold: finalUnitsSold[i]!,
       unitCost: unitCostResults[i]!.unitCost,
       price: validatedDecisions[i]!.price,
@@ -196,7 +228,18 @@ export function simulatePeriod(
       endInventory: finalInventories[i]!,
       spoilage: salesResults[i]!.spoilage,
     })
-  )
+    // Применяем storageCostMult к складским расходам
+    if (fx.storageCostMult !== 1) {
+      const holdingDiff = raw.holdingCost * (fx.storageCostMult - 1)
+      raw.holdingCost *= fx.storageCostMult
+      raw.operatingProfit -= holdingDiff
+      raw.profitBeforeTax -= holdingDiff
+      const newTax = raw.profitBeforeTax > 0 ? raw.profitBeforeTax * 0.25 : 0
+      raw.netProfit = raw.profitBeforeTax - newTax
+      raw.tax = newTax
+    }
+    return raw
+  })
 
   // ─── Этап 8: Баланс и автокредит ─────────────────────────────────────────
   const cashResults = activeCompanies.map((c, i) =>

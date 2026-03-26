@@ -34,11 +34,14 @@ export function applyNoise(
     return Math.max(0, base * factor)
   }
 
+  const capexValue = d.capex ?? d.capitalInvestment ?? 0
+  const noisyCapex = Math.max(0, noiseFn(capexValue, 4))
   return {
     price: Math.max(1, noiseFn(d.price, 1)),
     production: Math.round(Math.max(0, noiseFn(d.production, 2))),
     marketing: Math.max(0, noiseFn(d.marketing, 3)),
-    capitalInvestment: Math.max(0, noiseFn(d.capitalInvestment, 4)),
+    capex: noisyCapex,
+    capitalInvestment: noisyCapex,
     rd: Math.max(0, noiseFn(d.rd, 5)),
   }
 }
@@ -54,20 +57,21 @@ export function clampDecisions(d: Decisions, cash: number): Decisions {
   const production = Math.max(0, d.production)
 
   const maxSpend = Math.max(0, cash * 0.8)
-  const totalSpend = d.marketing + d.capitalInvestment + d.rd
+  const capexValue = d.capex ?? d.capitalInvestment ?? 0
+  const totalSpend = d.marketing + capexValue + d.rd
 
   let marketing = Math.max(0, d.marketing)
-  let capitalInvestment = Math.max(0, d.capitalInvestment)
+  let capex = Math.max(0, capexValue)
   let rd = Math.max(0, d.rd)
 
   if (totalSpend > maxSpend && totalSpend > 0) {
     const ratio = maxSpend / totalSpend
     marketing = marketing * ratio
-    capitalInvestment = capitalInvestment * ratio
+    capex = capex * ratio
     rd = rd * ratio
   }
 
-  return { price, production, marketing, capitalInvestment, rd }
+  return { price, production, marketing, capex, capitalInvestment: capex, rd }
 }
 
 /** Определяет фазу игры */
@@ -105,7 +109,9 @@ export abstract class BaseAI {
 
   /** Оценка спроса на основе базового рынка и макро-фактора */
   protected estimateDemand(ctx: AIDecisionContext): number {
-    return ctx.cfg.baseMarketSize * ctx.marketState.macroFactor
+    const baseMarketSize = ctx.cfg.baseMarketSize ?? 5000
+    const macroFactor = ctx.marketState.macroFactor ?? ctx.marketState.economicMultiplier
+    return baseMarketSize * macroFactor
   }
 
   /** Фаза игры: early / mid / late */

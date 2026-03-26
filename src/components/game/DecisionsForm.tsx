@@ -24,8 +24,8 @@ const FIELDS: FieldConfig[] = [
     key: 'price',
     label: 'Цена продукции',
     hint: 'Ниже цена — выше спрос',
-    min: 30,
-    max: 300,
+    min: 10,
+    max: 100,
     step: 1,
     unit: 'УДЕ',
     icon: '💰',
@@ -35,8 +35,8 @@ const FIELDS: FieldConfig[] = [
     label: 'Объём производства',
     hint: 'Непроданное хранится на складе',
     min: 0,
-    max: 4000,
-    step: 50,
+    max: 1500,
+    step: 10,
     unit: 'шт.',
     icon: '🏭',
   },
@@ -45,18 +45,18 @@ const FIELDS: FieldConfig[] = [
     label: 'Маркетинг',
     hint: 'Убывающая отдача',
     min: 0,
-    max: 100000,
-    step: 1000,
+    max: 30000,
+    step: 100,
     unit: 'УДЕ',
     icon: '📢',
   },
   {
-    key: 'capitalInvestment',
+    key: 'capex',
     label: 'Капитальные инвестиции',
     hint: 'Снижают себестоимость',
     min: 0,
-    max: 100000,
-    step: 1000,
+    max: 40000,
+    step: 100,
     unit: 'УДЕ',
     icon: '🔧',
   },
@@ -65,8 +65,8 @@ const FIELDS: FieldConfig[] = [
     label: 'НИОКР (R&D)',
     hint: 'Накапливаются, повышают качество',
     min: 0,
-    max: 50000,
-    step: 500,
+    max: 30000,
+    step: 100,
     unit: 'УДЕ',
     icon: '🔬',
   },
@@ -84,11 +84,11 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
 
   const [decisions, setDecisions] = useState<Decisions>(
     player?.decisions ?? {
-      price: 100,
-      production: 1000,
-      marketing: 10000,
-      capitalInvestment: 10000,
-      rd: 5000,
+      price: 35,
+      production: 800,
+      marketing: 5000,
+      capex: 5000,
+      rd: 3000,
     }
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -99,9 +99,10 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
   // Расчёт полных расходов включая производство
   const variableCost = calcVariableCostPerUnit(player.equipment, config)
   const productionCost = decisions.production * variableCost
-  const directSpend = decisions.marketing + decisions.capitalInvestment + decisions.rd
+  const capexAmount = decisions.capex ?? decisions.capitalInvestment ?? 0
+  const directSpend = decisions.marketing + capexAmount + decisions.rd
   const totalEstimatedCost = directSpend + productionCost
-  const cashAfter = player.cash - directSpend - decisions.capitalInvestment
+  const cashAfter = player.cash - directSpend
   const isOverBudget = cashAfter < 0
   const budgetUsedPercent = player.cash > 0 ? Math.min(100, (directSpend / player.cash) * 100) : 100
 
@@ -173,7 +174,9 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
                   {f.label}
                 </label>
                 <span className="text-sm font-bold font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                  {f.key === 'production' ? `${val} ${f.unit}` : `${formatMoney(val)} ${f.unit}`}
+                  {f.key === 'production'
+                    ? `${val} ${f.unit}`
+                    : `${formatMoney(val ?? 0)} ${f.unit}`}
                 </span>
               </div>
               <input

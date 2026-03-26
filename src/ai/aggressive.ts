@@ -24,9 +24,10 @@ export class AggressiveAI extends BaseAI {
     const str = this.strength
 
     const totalPlayers = cfg.aiCount + 1
-    const variableCost = estimateVariableCost(s.equipment, cfg.baseVariableCost)
+    const baseVariableCost = cfg.baseVariableCost ?? 12.0
+    const variableCost = estimateVariableCost(s.equipment, baseVariableCost)
     // Преимущество по издержкам: чем ниже variableCost vs base, тем сильнее
-    const costAdvantage = Math.max(0, 1 - variableCost / cfg.baseVariableCost) // [0, ~0.4]
+    const costAdvantage = Math.max(0, 1 - variableCost / baseVariableCost) // [0, ~0.4]
 
     let priceMult: number
     let marketingRate: number
@@ -61,7 +62,8 @@ export class AggressiveAI extends BaseAI {
         break
     }
 
-    const price = Math.max(variableCost * 1.08, cfg.basePrice * priceMult)
+    const basePrice = cfg.basePrice ?? 35
+    const price = Math.max(variableCost * 1.08, basePrice * priceMult)
     // Агрессивный: целится на долю больше средней
     const targetShare = (1 / totalPlayers) * (1 + 0.3 * str)
     const production = Math.round(demand * targetShare * productionMult)
@@ -70,7 +72,7 @@ export class AggressiveAI extends BaseAI {
       price,
       production,
       marketing: s.cash * marketingRate,
-      capitalInvestment: s.cash * capexRate,
+      capex: s.cash * capexRate,
       rd: s.cash * rdRate,
     }
 

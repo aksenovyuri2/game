@@ -22,9 +22,10 @@ export class BalancedAI extends BaseAI {
     const phase = this.getPhase(ctx)
     const str = this.strength
 
-    const totalPlayers = cfg.aiCount + 1
-    const variableCost = estimateVariableCost(s.equipment, cfg.baseVariableCost)
-    const costAdvantage = Math.max(0, 1 - variableCost / cfg.baseVariableCost)
+    const totalPlayers = (cfg.aiCount ?? 3) + 1
+    const baseVariableCost = cfg.baseVariableCost ?? 12.0
+    const variableCost = estimateVariableCost(s.equipment, baseVariableCost)
+    const costAdvantage = Math.max(0, 1 - variableCost / baseVariableCost)
     const rdAdvantage = Math.min(1, s.rdAccumulated / 80000)
 
     let priceMult: number
@@ -60,7 +61,8 @@ export class BalancedAI extends BaseAI {
         break
     }
 
-    const price = Math.max(variableCost * 1.12, cfg.basePrice * priceMult)
+    const basePrice = cfg.basePrice ?? 35
+    const price = Math.max(variableCost * 1.12, basePrice * priceMult)
     const estimatedShare = 1 / totalPlayers
     const production = Math.round(demand * estimatedShare * productionMult)
 
@@ -74,7 +76,7 @@ export class BalancedAI extends BaseAI {
       price,
       production,
       marketing: s.cash * marketingRate * marketingBoost,
-      capitalInvestment: s.cash * capexRate,
+      capex: s.cash * capexRate,
       rd: s.cash * rdRate,
     }
 

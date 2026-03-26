@@ -6,7 +6,7 @@ const baseDecisions: Decisions = {
   price: 100,
   production: 1000,
   marketing: 10000,
-  capitalInvestment: 10000,
+  capex: 10000,
   rd: 5000,
 }
 
@@ -69,7 +69,7 @@ describe('applyNoise', () => {
       expect(result.price).toBeGreaterThanOrEqual(0)
       expect(result.production).toBeGreaterThanOrEqual(0)
       expect(result.marketing).toBeGreaterThanOrEqual(0)
-      expect(result.capitalInvestment).toBeGreaterThanOrEqual(0)
+      expect(result.capex).toBeGreaterThanOrEqual(0)
       expect(result.rd).toBeGreaterThanOrEqual(0)
     }
   })
@@ -105,11 +105,11 @@ describe('clampDecisions', () => {
       price: 100,
       production: 0,
       marketing: 100000,
-      capitalInvestment: 100000,
+      capex: 100000,
       rd: 100000,
     }
     const result = clampDecisions(d, cash)
-    const totalSpend = result.marketing + result.capitalInvestment + result.rd
+    const totalSpend = result.marketing + result.capex + result.rd
     expect(totalSpend).toBeLessThanOrEqual(cash * 0.8 + 0.01) // +epsilon для float
   })
 
