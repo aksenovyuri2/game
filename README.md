@@ -17,6 +17,7 @@ React + TypeScript + Vite + shadcn/ui + Tailwind CSS + Recharts + Zustand
 ## Документация
 
 - [Полное ТЗ](docs/SPEC.md)
+- [SEO-оптимизация](docs/SEO.md)
 - [Инструкции для Claude Code](CLAUDE.md)
 
 ## Разработка
