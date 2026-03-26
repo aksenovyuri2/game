@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { runPeriod, createInitialCompanyState } from '../engine/simulation'
+import { simulatePeriod, createInitialCompanyState } from '../engine/simulation'
 import { calcMacroFactor } from '../engine/market'
 import { combineEventEffects, generateNewEvents, tickEvents } from '../engine/events'
 import { createAIPlayer, assignAICharacters } from '../ai/difficulty'
@@ -182,7 +182,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const combinedEffects = combineEventEffects(activeEvents)
 
     const market = buildMarketState(config, currentPeriod, gameSeed)
-    const result = runPeriod(withAIDecisions, market, config, combinedEffects)
+    const result = simulatePeriod(withAIDecisions, market, combinedEffects)
 
     // Проверяем банкротство игрока
     const playerState = result.updatedCompanyStates.find((c) => c.id === playerCompanyId)
