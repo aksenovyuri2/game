@@ -30,12 +30,13 @@ describe('distributeMarketDemand', () => {
     expect(result[0]).toBeGreaterThan(result[1]!)
   })
 
-  it('дуополия CAS[0]=80, CAS[1]=40 → доли 66.7% / 33.3%', () => {
+  it('дуополия CAS[0]=80, CAS[1]=40 → нелинейные доли (~80% / ~20%)', () => {
     const cas = [80, 40]
     const totalDemand = 1200
     const result = distributeMarketDemand(cas, totalDemand)
-    expect(result[0]! / totalDemand).toBeCloseTo(2 / 3, 1)
-    expect(result[1]! / totalDemand).toBeCloseTo(1 / 3, 1)
+    // С CAS^2: 6400 vs 1600 → 80% vs 20%
+    expect(result[0]! / totalDemand).toBeCloseTo(0.8, 1)
+    expect(result[1]! / totalDemand).toBeCloseTo(0.2, 1)
   })
 
   it('один CAS=0.01, остальные ~60 → минимальный спрос', () => {

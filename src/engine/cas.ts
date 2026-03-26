@@ -5,40 +5,59 @@ import {
   W_BRAND,
   ELASTICITY_EXPONENT,
   MKTG_MAX,
-  MKTG_HALF,
   RELATIVE_MKT_WEIGHT,
   Q_MAX,
   Q_HALF,
+  PRICE_OPTIMAL,
+  PRICE_ELASTICITY_K,
+  PRICE_ABSOLUTE_WEIGHT,
+  PRICE_RELATIVE_WEIGHT,
+  MKTG_THRESHOLD,
+  MKTG_MIDPOINT,
+  MKTG_STEEPNESS,
 } from './constants'
 
 /**
  * Рассчитывает priceScore для компании i.
- * priceScore = 100 × (maxPrice - price) / (maxPrice - minPrice), затем ^ ELASTICITY_EXPONENT
- * Если все цены равны — 50.
+ * Гибрид: абсолютная (гауссова кривая вокруг PRICE_OPTIMAL) + относительная компонента.
  */
 export function calcPriceScore(price: number, allPrices: number[]): number {
+  // Абсолютная компонента: гауссова кривая, максимум при PRICE_OPTIMAL
+  const deviation = price - PRICE_OPTIMAL
+  const absoluteScore = 100 * Math.exp(-PRICE_ELASTICITY_K * deviation * deviation)
+
+  // Относительная компонента (как раньше)
   const maxPrice = Math.max(...allPrices)
   const minPrice = Math.min(...allPrices)
-
+  let relativeScore: number
   if (maxPrice === minPrice) {
-    return 50.0
+    relativeScore = 50.0
+  } else {
+    const rawScore = (100 * (maxPrice - price)) / (maxPrice - minPrice)
+    relativeScore = Math.min(100, Math.pow(rawScore, ELASTICITY_EXPONENT))
   }
 
-  const rawScore = (100 * (maxPrice - price)) / (maxPrice - minPrice)
-  // Apply elasticity exponent, result stays in [0, 100]
-  return Math.min(100, Math.pow(rawScore, ELASTICITY_EXPONENT))
+  const combined = PRICE_ABSOLUTE_WEIGHT * absoluteScore + PRICE_RELATIVE_WEIGHT * relativeScore
+  return Math.max(0, Math.min(100, combined))
 }
 
 /**
  * Рассчитывает marketingScore для компании i.
- * Базовый: MKTG_MAX × (1 - e^(-marketing / MKTG_HALF))
- * Бонус/штраф относительно среднего: ±clamp(-15, 15)
+ * Логистическая S-кривая с порогом: ниже MKTG_THRESHOLD — почти нет эффекта.
  */
 export function calcMarketingScore(marketing: number, allMarketings: number[]): number {
-  const baseScore = MKTG_MAX * (1 - Math.exp(-marketing / MKTG_HALF))
+  let baseScore: number
 
+  if (marketing < MKTG_THRESHOLD) {
+    // Ниже порога — линейный рост до ~10 баллов
+    baseScore = (marketing / MKTG_THRESHOLD) * 10
+  } else {
+    // Логистическая S-кривая
+    baseScore = MKTG_MAX / (1 + Math.exp(-MKTG_STEEPNESS * (marketing - MKTG_MIDPOINT)))
+  }
+
+  // Относительный бонус/штраф
   const avgMarketing = allMarketings.reduce((a, b) => a + b, 0) / allMarketings.length
-
   let relativeBonus = 0
   if (avgMarketing > 0) {
     relativeBonus = RELATIVE_MKT_WEIGHT * (marketing / avgMarketing - 1)

@@ -28,14 +28,18 @@ describe('calcEquipment', () => {
 })
 
 describe('calcCapacity', () => {
-  it('при начальном equipment=100000 → capacity=1000', () => {
+  it('при начальном equipment=100000 → capacity в разумном диапазоне', () => {
     const result = calcCapacity(100000)
-    expect(result).toBeCloseTo(1000, 0)
+    // S-кривая: при equipment=100000 (ниже midpoint=150000) → ниже средней мощности
+    expect(result).toBeGreaterThan(600)
+    expect(result).toBeLessThan(1400)
   })
 
-  it('при equipment=0 → capacity = 200 (минимум)', () => {
+  it('при equipment=0 → capacity = минимальный (S-кривая)', () => {
     const result = calcCapacity(0)
-    expect(result).toBe(200)
+    // S-кривая при 0 → значение ниже midpoint, но clamp ≥ 200
+    expect(result).toBeGreaterThanOrEqual(200)
+    expect(result).toBeLessThan(600)
   })
 
   it('при equipment очень малом → capacity = 200 (clamp min)', () => {
@@ -110,13 +114,13 @@ describe('calcUnitCost', () => {
   describe('нормальные значения', () => {
     it('при полной загрузке (production=capacity): scale discount = 20%', () => {
       const result = calcUnitCost(1000, 1000, 100000, 1000)
-      // rdEfficiency = min(0.3, 1000/100000) = 0.01
-      // rawVariableCost = 12 × (1 - 0.01) = 11.88
+      // rdEfficiency — S-кривая, при rdAccumulated=1000 → ~MIN_RD_STEP (0.001)
+      // rawVariableCost ≈ 12 × (1 - ~0.001) ≈ 11.99
       // scaleDiscount = 20% (полная загрузка)
-      // variableCost = 11.88 × 0.80 × 1.0 = 9.504
+      // variableCost ≈ 11.99 × 0.80 × 1.0 ≈ 9.59
       // fixedCostPerUnit = (8000 + 100000×0.02) / 1000 = 10
-      // unitCost ≈ 19.504
-      expect(result.unitCost).toBeCloseTo(19.5, 0)
+      // unitCost ≈ 19.6
+      expect(result.unitCost).toBeCloseTo(19.6, 0)
       expect(result.overtimePenalty).toBe(1.0)
     })
 

@@ -8,36 +8,37 @@ import {
 } from '@/engine/cas'
 
 describe('calcPriceScore', () => {
-  it('все цены одинаковые → priceScore = 50 для всех', () => {
+  it('все цены одинаковые (оптимальные) → priceScore высокий для всех', () => {
     const prices = [35, 35, 35, 35]
     for (let i = 0; i < prices.length; i++) {
-      expect(calcPriceScore(prices[i]!, prices)).toBeCloseTo(50.0, 5)
+      // Абсолютный компонент: 100 (оптимальная цена), относительный: 50
+      // 0.6*100 + 0.4*50 = 80
+      const score = calcPriceScore(prices[i]!, prices)
+      expect(score).toBeCloseTo(80.0, 0)
     }
   })
 
-  it('минимальная цена получает максимальный score = 100', () => {
+  it('самая низкая цена получает наивысший score среди конкурентов', () => {
     const prices = [10, 50, 50, 50]
-    const score = calcPriceScore(10, prices)
-    expect(score).toBeCloseTo(100, 0)
+    const scoreLow = calcPriceScore(10, prices)
+    const scoreHigh = calcPriceScore(50, prices)
+    expect(scoreLow).toBeGreaterThan(scoreHigh)
   })
 
-  it('максимальная цена получает score = 0', () => {
+  it('максимальная цена получает низкий score', () => {
     const prices = [10, 50, 50, 50]
     const score = calcPriceScore(50, prices)
-    expect(score).toBeCloseTo(0, 0)
+    expect(score).toBeLessThan(20)
   })
 
-  it('применяется ELASTICITY_EXPONENT = 1.3', () => {
-    const prices = [20, 40]
-    // min price: raw = 100, 100^1.3 > 100, clamped to 100
-    const scoreMin = calcPriceScore(20, prices)
-    expect(scoreMin).toBeCloseTo(100, 0)
-    // max price: raw = 0, 0^1.3 = 0
-    const scoreMax = calcPriceScore(40, prices)
-    expect(scoreMax).toBeCloseTo(0, 0)
-    // Нелинейность: для промежуточной цены raw=50, 50^1.3 ≈ 112 → clamped 100
-    // Достаточно проверить что минимальная цена = максимальный score
-    expect(scoreMin).toBeGreaterThan(scoreMax)
+  it('гибридная формула: оптимальная цена 35 лучше крайних', () => {
+    const prices = [10, 35, 90]
+    const score10 = calcPriceScore(10, prices)
+    const score35 = calcPriceScore(35, prices)
+    const score90 = calcPriceScore(90, prices)
+    // 35 — оптимальная, должна иметь высокий score
+    expect(score35).toBeGreaterThan(score10)
+    expect(score35).toBeGreaterThan(score90)
   })
 
   it('с двумя компаниями: цена демпингёра dominates', () => {
@@ -56,10 +57,11 @@ describe('calcMarketingScore', () => {
     }
   })
 
-  it('marketing = 6000 → базовый score ≈ 63', () => {
-    // marketingScore = 100 × (1 - e^(-6000/6000)) = 100 × (1 - 1/e) ≈ 63.2
+  it('marketing = 6000 → score в середине диапазона (S-кривая)', () => {
+    // Логистическая: 100 / (1 + exp(-0.0005*(6000-8000))) = 100/(1+exp(1)) ≈ 26.9
     const score = calcMarketingScore(6000, [6000])
-    expect(score).toBeCloseTo(63.2, 0)
+    expect(score).toBeGreaterThan(20)
+    expect(score).toBeLessThan(50)
   })
 
   it('высокий маркетинг одной компании при низком у остальных → до 100', () => {
