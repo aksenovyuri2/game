@@ -33,7 +33,10 @@ export default function ResultsScreen() {
   if (!last || !config) {
     return (
       <PageLayout>
-        <div className="text-center py-20">
+        <div className="text-center py-20 animate-fade-in">
+          <div className="size-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">📊</span>
+          </div>
           <p className="text-muted-foreground">Нет данных об игре.</p>
           <Button className="mt-4" onClick={() => navigate('home')}>
             На главную
@@ -58,36 +61,40 @@ export default function ResultsScreen() {
 
   return (
     <PageLayout title="Итоги игры">
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         {/* Hero result card */}
         <Card
           className={
             isBankruptcy
-              ? 'border-destructive/50 bg-destructive/5'
+              ? 'border-destructive/30 bg-gradient-to-br from-destructive/5 to-destructive/10'
               : playerWon
-                ? 'border-primary/50 bg-primary/5'
+                ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-purple-500/5 glow-primary'
                 : ''
           }
         >
-          <CardContent className="py-8 text-center">
-            <div className="text-5xl mb-3">
+          <CardContent className="py-10 text-center">
+            <div className="text-6xl mb-4 animate-float">
               {isBankruptcy ? '💀' : playerWon ? '🏆' : playerRank <= 3 ? '🥈' : '📊'}
             </div>
             <h1 className="text-3xl font-bold">
-              {isBankruptcy
-                ? 'Банкротство'
-                : playerWon
-                  ? 'Победа!'
-                  : `Место ${playerRank} из ${sortedResults.length}`}
+              {isBankruptcy ? (
+                'Банкротство'
+              ) : playerWon ? (
+                <span className="text-gradient">Победа!</span>
+              ) : (
+                `Место ${playerRank} из ${sortedResults.length}`
+              )}
             </h1>
             {player && playerResult && (
-              <p className="text-muted-foreground mt-2 text-lg">
+              <p className="text-muted-foreground mt-3 text-lg">
                 {player.name} · MPI{' '}
-                <span className="font-bold text-foreground">{formatMPI(playerResult.mpi)}</span>
+                <span className="font-bold font-mono text-gradient">
+                  {formatMPI(playerResult.mpi)}
+                </span>
               </p>
             )}
             {!playerWon && winner && (
-              <p className="text-sm text-muted-foreground mt-3">
+              <p className="text-sm text-muted-foreground mt-4 bg-muted/30 inline-block px-4 py-2 rounded-full">
                 Победитель:{' '}
                 <strong className="text-foreground">
                   {companies.find((c) => c.id === winner.companyId)?.name ?? winner.companyId}
@@ -98,18 +105,18 @@ export default function ResultsScreen() {
           </CardContent>
         </Card>
 
-        {/* Финальный рейтинг */}
+        {/* Final rating */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="size-2 rounded-full bg-chart-3" />
+              <div className="size-2.5 rounded-full bg-gradient-to-r from-chart-3 to-amber-400" />
               Финальный рейтинг
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-muted/50">
+                <tr className="border-b bg-muted/30">
                   <th className="px-4 py-2.5 text-left text-muted-foreground font-medium text-xs uppercase tracking-wide">
                     #
                   </th>
@@ -135,12 +142,12 @@ export default function ResultsScreen() {
                   return (
                     <tr
                       key={r.companyId}
-                      className={`border-b last:border-0 transition-colors ${
+                      className={`border-b border-border/30 last:border-0 transition-colors ${
                         companyBankrupt
-                          ? 'opacity-50'
+                          ? 'opacity-40'
                           : isPlayer
-                            ? 'bg-primary/5 font-semibold'
-                            : 'hover:bg-muted/30'
+                            ? 'bg-primary/5'
+                            : 'hover:bg-muted/20'
                       }`}
                     >
                       <td className="px-4 py-3">
@@ -148,20 +155,26 @@ export default function ResultsScreen() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-1.5">
-                          {c?.name ?? r.companyId}
+                          <span className={isPlayer ? 'font-semibold' : ''}>
+                            {c?.name ?? r.companyId}
+                          </span>
                           {isPlayer && (
-                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">
                               ВЫ
                             </span>
                           )}
                           {companyBankrupt && (
-                            <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-md">
                               БАНКРОТ
                             </span>
                           )}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">{formatMPI(r.mpi)}</td>
+                      <td
+                        className={`px-4 py-3 text-right font-mono ${isPlayer ? 'font-semibold' : ''}`}
+                      >
+                        {formatMPI(r.mpi)}
+                      </td>
                       <td className="px-4 py-3 text-right">{formatPercent(r.marketShare)}</td>
                       <td
                         className={`px-4 py-3 text-right font-mono ${r.newRetainedEarnings >= 0 ? 'text-emerald-600' : 'text-red-500'}`}
@@ -176,7 +189,7 @@ export default function ResultsScreen() {
           </CardContent>
         </Card>
 
-        {/* Графики */}
+        {/* Charts */}
         <div className="flex gap-2 flex-wrap">
           {METRIC_OPTIONS.map((m) => (
             <Button
@@ -184,6 +197,7 @@ export default function ResultsScreen() {
               size="sm"
               variant={chartMetric === m.value ? 'default' : 'outline'}
               onClick={() => setChartMetric(m.value)}
+              className={chartMetric === m.value ? '' : 'bg-white/50'}
             >
               {m.label}
             </Button>
@@ -196,9 +210,13 @@ export default function ResultsScreen() {
           metric={chartMetric}
         />
 
-        {/* Действия */}
+        {/* Actions */}
         <div className="flex gap-3">
-          <Button size="lg" className="flex-1 h-12 rounded-xl" onClick={handleNewGame}>
+          <Button
+            size="lg"
+            className="flex-1 h-12 rounded-xl shadow-md shadow-primary/15"
+            onClick={handleNewGame}
+          >
             Новая игра
           </Button>
           <Button

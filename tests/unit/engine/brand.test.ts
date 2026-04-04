@@ -54,8 +54,8 @@ describe('calcBrandReputation', () => {
           prevQualityScore: 0,
           // fulfillmentRate < 0.95 → brandFromFulfillment = 0 (чистое затухание)
           fulfillmentRate: 0.9,
-          price: 35,
-          avgPrice: 35,
+          price: 40,
+          avgPrice: 40,
         })
       }
       // 50 × 0.9^12 ≈ 14.3
@@ -86,8 +86,8 @@ describe('calcBrandReputation', () => {
           qualityScore: 0,
           prevQualityScore: 0,
           fulfillmentRate: 0,
-          price: 35,
-          avgPrice: 35,
+          price: 40,
+          avgPrice: 40,
         })
       }
       // Период 1: 50×0.9 - 15×1 = 45 - 15 = 30

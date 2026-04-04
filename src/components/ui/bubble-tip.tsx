@@ -7,12 +7,9 @@ interface BubbleTipProps {
   id: TipId
   children: ReactNode
   content: string
-  /** Где стрелка пузыря указывает (top = стрелка сверху, пузырь ниже элемента) */
   arrow?: ArrowPosition
-  /** Показывать порядковый номер шага */
   step?: number
   totalSteps?: number
-  /** Callback при нажатии «Далее» */
   onNext?: () => void
 }
 
@@ -58,7 +55,6 @@ export function BubbleTip({
     }
   }, [isActive])
 
-  // Скрываем когда подсказка деактивируется
   useEffect(() => {
     if (!isActive && visible) {
       const t = setTimeout(() => setVisible(false), 0)
@@ -80,19 +76,18 @@ export function BubbleTip({
       {children}
       {isActive && (
         <div
-          className={`absolute z-50 ${ARROW_CLASSES[arrow]} transition-all duration-200 ${
+          className={`absolute z-50 ${ARROW_CLASSES[arrow]} transition-all duration-300 ${
             visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
           }`}
         >
-          <div className="relative bg-primary text-primary-foreground rounded-xl shadow-xl shadow-primary/20 px-4 py-3 max-w-[280px] min-w-[200px]">
-            {/* Каретка-стрелка */}
+          <div className="relative bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl shadow-xl shadow-primary/25 px-4 py-3.5 max-w-[280px] min-w-[200px]">
             <div className={`absolute w-0 h-0 ${CARET[arrow]}`} />
 
             <p className="text-sm leading-relaxed">{content}</p>
 
-            <div className="flex items-center justify-between mt-2.5 gap-3">
+            <div className="flex items-center justify-between mt-3 gap-3">
               {step !== undefined && totalSteps !== undefined ? (
-                <span className="text-xs text-primary-foreground/60">
+                <span className="text-xs text-primary-foreground/50 font-mono">
                   {step}/{totalSteps}
                 </span>
               ) : (
@@ -100,9 +95,9 @@ export function BubbleTip({
               )}
               <button
                 onClick={handleDismiss}
-                className="text-xs font-semibold bg-primary-foreground/20 hover:bg-primary-foreground/30 rounded-lg px-3 py-1 transition-colors cursor-pointer"
+                className="text-xs font-semibold bg-white/20 hover:bg-white/30 rounded-xl px-3.5 py-1.5 transition-all duration-200 cursor-pointer active:scale-95"
               >
-                {onNext ? 'Далее →' : 'Понятно'}
+                {onNext ? 'Далее' : 'Понятно'}
               </button>
             </div>
           </div>

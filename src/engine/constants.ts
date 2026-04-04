@@ -58,29 +58,6 @@ export const MAX_LOAN_RATIO = 0.8
 export const LOAN_BUFFER = 5000
 export const REPAYMENT_THRESHOLD = 20000
 
-// Абсолютная кривая спроса (ценовая эластичность)
-export const PRICE_OPTIMAL = 35
-export const PRICE_ELASTICITY_K = 0.04
-export const PRICE_ABSOLUTE_WEIGHT = 0.6
-export const PRICE_RELATIVE_WEIGHT = 0.4
-
-// Маркетинг — S-кривая (логистическая)
-export const MKTG_THRESHOLD = 2000
-export const MKTG_MIDPOINT = 8000
-export const MKTG_STEEPNESS = 0.0005
-
-// R&D — S-кривая
-export const RD_MIDPOINT = 50000
-export const RD_STEEPNESS = 0.00004
-export const MIN_RD_STEP = 0.001
-
-// CapEx — S-кривая для capacity
-export const CAPEX_MIDPOINT = 150000
-export const CAPEX_STEEPNESS = 0.00002
-
-// Рыночный порог (для 100% capture)
-export const CAS_DOMINANCE_EXPONENT = 2.0
-
 // Стартовый капитал — пресеты
 export const STARTING_CASH_LOW = 30000
 export const STARTING_CASH_MEDIUM = 50000

@@ -1,71 +1,63 @@
 import { describe, it, expect } from 'vitest'
 import { calcPriceScore, calcMarketingScore } from '../../../src/engine/cas'
 
-describe('calcPriceScore v2 — абсолютная ценовая эластичность', () => {
-  it('при оптимальной цене 35 — максимальный абсолютный компонент', () => {
-    const score = calcPriceScore(35, [20, 35, 50])
-    // price=35 → абсолютная компонента ~100, относительная ~50
-    // Итого: 0.6*100 + 0.4*~50 = ~80
-    expect(score).toBeGreaterThan(70)
+describe('calcPriceScore — относительная ценовая эластичность', () => {
+  it('при одинаковых ценах → priceScore = 50 для всех', () => {
+    const score = calcPriceScore(35, [35, 35, 35])
+    expect(score).toBe(50)
   })
 
-  it('при одинаковых высоких ценах (90) — низкий абсолютный score для всех', () => {
-    const score = calcPriceScore(90, [90, 90, 90, 90])
-    // Абсолютный: exp(-0.04*(90-35)^2) = exp(-121) ≈ 0 → абсолютная ~0
-    // Относительный: все равны → 50
-    // Итого: 0.6*~0 + 0.4*50 = ~20
-    expect(score).toBeLessThan(30)
+  it('самая низкая цена получает 100 (с экспонентой 1.3)', () => {
+    const score = calcPriceScore(10, [10, 50, 50, 50])
+    // rawScore = 100 × (50-10)/(50-10) = 100, 100^1.3 = 100 (capped)
+    expect(score).toBe(100)
   })
 
-  it('при одинаковых низких ценах (10) — абсолютный score средний', () => {
-    const score = calcPriceScore(10, [10, 10, 10])
-    // Абсолютный: exp(-0.04*(10-35)^2) = exp(-25) ≈ 0 → ~0
-    // Относительный: все равны → 50
-    expect(score).toBeLessThan(30)
+  it('самая высокая цена получает 0', () => {
+    const score = calcPriceScore(90, [10, 50, 90])
+    expect(score).toBe(0)
   })
 
-  it('гибрид absolute+relative — самая дешёвая имеет преимущество', () => {
+  it('средняя цена получает промежуточный score', () => {
     const scores = [20, 35, 50, 70].map((p) => calcPriceScore(p, [20, 35, 50, 70]))
-    // price=35 должна быть лучшей (оптимальная цена + хорошая относительная)
-    expect(scores[1]).toBeGreaterThan(scores[0]!) // 35 > 20 (20 далека от оптимума)
-    expect(scores[1]).toBeGreaterThan(scores[2]!) // 35 > 50
-    expect(scores[1]).toBeGreaterThan(scores[3]!) // 35 > 70
+    // Чем ниже цена, тем выше score (с capping при экспоненте 1.3)
+    expect(scores[0]).toBeGreaterThanOrEqual(scores[1]!)
+    expect(scores[1]).toBeGreaterThanOrEqual(scores[2]!)
+    expect(scores[2]).toBeGreaterThan(scores[3]!)
+    expect(scores[3]).toBe(0) // самая дорогая → 0
   })
 
-  it('абсолютный компонент создаёт колоколообразную кривую вокруг оптимума', () => {
-    // Цены симметрично вокруг 35
-    const s25 = calcPriceScore(25, [25])
-    const s35 = calcPriceScore(35, [35])
-    const s45 = calcPriceScore(45, [45])
-    // s35 > s25 ≈ s45 (симметрия)
-    expect(s35).toBeGreaterThan(s25)
-    expect(s35).toBeGreaterThan(s45)
+  it('экспонента 1.3 усиливает преимущество дешёвых цен', () => {
+    // rawScore = 100 × (70-35) / (70-20) = 70
+    // priceScore = 70^1.3 ≈ 136.5, capped at 100
+    const score = calcPriceScore(35, [20, 35, 50, 70])
+    expect(score).toBeGreaterThan(60)
   })
 })
 
-describe('calcMarketingScore v2 — S-кривая с порогом', () => {
+describe('calcMarketingScore — экспоненциальная формула', () => {
   const allMkt = [5000, 5000, 5000, 5000]
 
-  it('ниже порога (< 2000) — эффект минимальный', () => {
-    const score = calcMarketingScore(1000, allMkt)
-    expect(score).toBeLessThan(15)
+  it('marketing = 0 → score = 0', () => {
+    const score = calcMarketingScore(0, allMkt)
+    expect(score).toBe(0)
   })
 
-  it('на пороге (2000) — начинает расти', () => {
-    // Используем равные бюджеты чтобы relative bonus = 0
-    const score = calcMarketingScore(2000, [2000, 2000, 2000, 2000])
-    expect(score).toBeGreaterThan(3)
-    expect(score).toBeLessThan(30)
+  it('marketing = 3000 → baseScore ≈ 39', () => {
+    // 100 × (1 - exp(-3000/6000)) = 100 × (1 - exp(-0.5)) ≈ 39.3
+    const score = calcMarketingScore(3000, [3000, 3000, 3000, 3000])
+    expect(score).toBeGreaterThan(30)
+    expect(score).toBeLessThan(50)
   })
 
-  it('на midpoint (8000) — примерно 50', () => {
-    const score = calcMarketingScore(8000, [8000, 8000, 8000, 8000])
-    expect(score).toBeGreaterThan(35)
-    expect(score).toBeLessThan(70)
+  it('marketing = 6000 → baseScore ≈ 63 (halfpoint)', () => {
+    const score = calcMarketingScore(6000, [6000, 6000, 6000, 6000])
+    expect(score).toBeGreaterThan(55)
+    expect(score).toBeLessThan(75)
   })
 
-  it('при максимуме (30000) — близко к 100', () => {
-    const score = calcMarketingScore(30000, [30000, 30000, 30000, 30000])
+  it('marketing = 18000 → baseScore ≈ 95', () => {
+    const score = calcMarketingScore(18000, [18000, 18000, 18000, 18000])
     expect(score).toBeGreaterThan(85)
   })
 

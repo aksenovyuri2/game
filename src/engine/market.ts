@@ -1,4 +1,4 @@
-import { REDISTRIBUTION_RATE, SPOILAGE_RATE, CAS_DOMINANCE_EXPONENT } from './constants'
+import { REDISTRIBUTION_RATE, SPOILAGE_RATE } from './constants'
 import type { Decisions, GameConfig, MarketScenario } from './types'
 
 export interface SalesResult {
@@ -14,16 +14,15 @@ export interface SalesResult {
  * Коррекция остатка: sum(companyDemand) == totalMarketDemand
  */
 export function distributeMarketDemand(cas: number[], totalMarketDemand: number): number[] {
-  // Нелинейное распределение: CAS^exp усиливает разрыв между лидером и аутсайдерами
-  const adjustedCAS = cas.map((c) => Math.pow(Math.max(c, 0), CAS_DOMINANCE_EXPONENT))
-  const totalCAS = adjustedCAS.reduce((a, b) => a + b, 0)
+  // Линейное распределение: companyDemand = totalDemand × CAS[i] / sum(CAS)
+  const totalCAS = cas.reduce((a, b) => a + b, 0)
   if (totalCAS <= 0) {
     const equal = Math.floor(totalMarketDemand / cas.length)
     return cas.map(() => equal)
   }
 
   // Базовое деление
-  const demands = adjustedCAS.map((c) => Math.floor((totalMarketDemand * c) / totalCAS))
+  const demands = cas.map((c) => Math.floor((totalMarketDemand * c) / totalCAS))
   const sum = demands.reduce((a, b) => a + b, 0)
   let remainder = totalMarketDemand - sum
 

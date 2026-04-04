@@ -241,13 +241,20 @@ export function simulatePeriod(
     return raw
   })
 
-  // ─── Этап 8: Баланс и автокредит ─────────────────────────────────────────
+  // ─── Этап 8: Баланс и автокредит (прямой метод из ТЗ) ───────────────────
   const cashResults = activeCompanies.map((c, i) =>
     calcCashAndLoans({
       prevCash: c.cash,
-      netProfit: pnlResults[i]!.netProfit,
-      depreciation: pnlResults[i]!.depreciation,
+      revenue: pnlResults[i]!.revenue,
+      productionCost: validatedDecisions[i]!.production * unitCostResults[i]!.unitCost,
+      marketing: validatedDecisions[i]!.marketing,
+      rd: validatedDecisions[i]!.rd,
       capex: validatedDecisions[i]!.capex ?? validatedDecisions[i]!.capitalInvestment ?? 0,
+      tax: pnlResults[i]!.tax,
+      interestExpense: pnlResults[i]!.interestExpense,
+      holdingCost: pnlResults[i]!.holdingCost,
+      spoilageCost: pnlResults[i]!.spoilageCost,
+      productionOverhead: pnlResults[i]!.productionOverhead,
       prevLoanBalance: c.loanBalance,
       prevCreditRating: c.creditRating,
       equipment: newEquipments[i]!,

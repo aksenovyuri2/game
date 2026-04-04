@@ -17,6 +17,7 @@ interface FieldConfig {
   step: number
   unit: string
   icon: string
+  color: string
 }
 
 const FIELDS: FieldConfig[] = [
@@ -29,6 +30,7 @@ const FIELDS: FieldConfig[] = [
     step: 1,
     unit: 'УДЕ',
     icon: '💰',
+    color: 'from-amber-500 to-orange-500',
   },
   {
     key: 'production',
@@ -39,6 +41,7 @@ const FIELDS: FieldConfig[] = [
     step: 10,
     unit: 'шт.',
     icon: '🏭',
+    color: 'from-blue-500 to-cyan-500',
   },
   {
     key: 'marketing',
@@ -49,6 +52,7 @@ const FIELDS: FieldConfig[] = [
     step: 100,
     unit: 'УДЕ',
     icon: '📢',
+    color: 'from-green-500 to-emerald-500',
   },
   {
     key: 'capex',
@@ -59,6 +63,7 @@ const FIELDS: FieldConfig[] = [
     step: 100,
     unit: 'УДЕ',
     icon: '🔧',
+    color: 'from-purple-500 to-violet-500',
   },
   {
     key: 'rd',
@@ -69,6 +74,7 @@ const FIELDS: FieldConfig[] = [
     step: 100,
     unit: 'УДЕ',
     icon: '🔬',
+    color: 'from-pink-500 to-rose-500',
   },
 ]
 
@@ -96,7 +102,6 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
 
   if (!player || !config) return null
 
-  // Расчёт полных расходов включая производство
   const variableCost = calcVariableCostPerUnit(player.equipment, config)
   const productionCost = decisions.production * variableCost
   const capexAmount = decisions.capex ?? decisions.capitalInvestment ?? 0
@@ -118,17 +123,35 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Решения на период</CardTitle>
-        <div className="space-y-2 mt-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <div className="size-6 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M3 7.5L5.5 10L11 4"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          Решения на период
+        </CardTitle>
+        <div className="space-y-2.5 mt-3">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Касса: {formatMoney(player.cash)} УДЕ</span>
+            <span className="text-muted-foreground">
+              Касса:{' '}
+              <span className="font-mono font-medium text-foreground">
+                {formatMoney(player.cash)}
+              </span>{' '}
+              УДЕ
+            </span>
             <span
-              className={`font-semibold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}
+              className={`font-mono font-semibold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}
             >
               Остаток: {formatMoney(cashAfter)} УДЕ
             </span>
           </div>
-          {/* Budget progress bar */}
           <BubbleTip
             id="budget-bar"
             arrow="top"
@@ -137,26 +160,37 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
             totalSteps={5}
             onNext={() => showTip('submit-period')}
           >
-            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+            <div className="h-2.5 rounded-full bg-secondary/60 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${
+                className={`h-full rounded-full transition-all duration-500 ease-out ${
                   isOverBudget
-                    ? 'bg-destructive'
+                    ? 'bg-gradient-to-r from-destructive to-destructive/80'
                     : budgetUsedPercent > 70
-                      ? 'bg-warning'
-                      : 'bg-primary'
+                      ? 'bg-gradient-to-r from-warning to-orange-400'
+                      : 'bg-gradient-to-r from-primary to-primary/70'
                 }`}
                 style={{ width: `${Math.min(100, budgetUsedPercent)}%` }}
               />
             </div>
           </BubbleTip>
-          {/* Оценка затрат на производство */}
           <p className="text-xs text-muted-foreground">
             Оценка затрат на производство: ~{formatMoney(productionCost)} УДЕ (
-            {formatMoney(variableCost)}/шт. × {decisions.production})
+            {formatMoney(variableCost)}/шт. x {decisions.production})
           </p>
           {totalEstimatedCost > player.cash * 0.9 && (
-            <p className="text-xs text-warning font-medium">Высокие расходы — следите за кассой!</p>
+            <p className="text-xs text-warning font-medium flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path
+                  d="M6 1L11 10H1L6 1Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <path d="M6 5V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="6" cy="8.5" r="0.5" fill="currentColor" />
+              </svg>
+              Высокие расходы — следите за кассой!
+            </p>
           )}
         </div>
       </CardHeader>
@@ -168,12 +202,12 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
               <div className="flex justify-between items-center">
                 <label
                   htmlFor={`field-${f.key}`}
-                  className="text-sm font-medium flex items-center gap-1.5"
+                  className="text-sm font-medium flex items-center gap-2"
                 >
-                  <span>{f.icon}</span>
+                  <span className="text-base">{f.icon}</span>
                   {f.label}
                 </label>
-                <span className="text-sm font-bold font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                <span className="text-sm font-bold font-mono bg-gradient-to-r from-primary/10 to-primary/5 text-primary px-2.5 py-1 rounded-lg">
                   {f.key === 'production'
                     ? `${val} ${f.unit}`
                     : `${formatMoney(val ?? 0)} ${f.unit}`}
@@ -191,7 +225,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{f.min}</span>
-                <span>{f.hint}</span>
+                <span className="text-muted-foreground/60">{f.hint}</span>
                 <span>{f.key === 'production' ? f.max : formatMoney(f.max)}</span>
               </div>
             </div>
@@ -206,7 +240,7 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
           totalSteps={5}
         >
           <Button
-            className="w-full mt-2 h-12 text-base rounded-xl"
+            className="w-full mt-2 h-12 text-base rounded-xl shadow-md shadow-primary/15"
             size="lg"
             onClick={handleSubmit}
             disabled={isOverBudget || isSubmitting}
@@ -215,7 +249,18 @@ export function DecisionsForm({ onSubmit }: DecisionsFormProps) {
               ? 'Расчёт...'
               : isOverBudget
                 ? 'Недостаточно средств'
-                : 'Завершить период →'}
+                : 'Завершить период'}
+            {!isSubmitting && !isOverBudget && (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="ml-1">
+                <path
+                  d="M3 9H15M15 9L10 4M15 9L10 14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </Button>
         </BubbleTip>
       </CardContent>

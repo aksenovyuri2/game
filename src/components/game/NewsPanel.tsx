@@ -3,12 +3,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { ActiveEvent, EventCategory } from '@/engine/types'
 
-const CATEGORY_CONFIG: Record<EventCategory, { icon: string; label: string }> = {
-  economy: { icon: '💰', label: 'Экономика' },
-  technology: { icon: '🔬', label: 'Технологии' },
-  social: { icon: '👥', label: 'Общество' },
-  regulation: { icon: '🏛️', label: 'Регулирование' },
-  industry: { icon: '🏭', label: 'Отрасль' },
+const CATEGORY_CONFIG: Record<EventCategory, { icon: string; label: string; color: string }> = {
+  economy: { icon: '💰', label: 'Экономика', color: 'from-amber-500/10 to-orange-500/5' },
+  technology: { icon: '🔬', label: 'Технологии', color: 'from-blue-500/10 to-cyan-500/5' },
+  social: { icon: '👥', label: 'Общество', color: 'from-green-500/10 to-emerald-500/5' },
+  regulation: { icon: '🏛️', label: 'Регулирование', color: 'from-purple-500/10 to-violet-500/5' },
+  industry: { icon: '🏭', label: 'Отрасль', color: 'from-slate-500/10 to-gray-500/5' },
 }
 
 function getEventCategory(eventId: string): EventCategory {
@@ -35,7 +35,7 @@ function pluralEvents(n: number): string {
 function EffectBadge({ label, positive }: { label: string; positive: boolean }): React.JSX.Element {
   return (
     <span
-      className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-md ${
+      className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${
         positive
           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
           : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -110,7 +110,7 @@ function EventEffectBadges({ event }: { event: ActiveEvent }): React.JSX.Element
     )
   }
 
-  return <div className="flex flex-wrap gap-1 mt-1.5">{badges}</div>
+  return <div className="flex flex-wrap gap-1.5 mt-2">{badges}</div>
 }
 
 interface NewsPanelProps {
@@ -132,15 +132,19 @@ export function NewsPanel({
   const ongoingEvents = activeEvents.filter((e) => !newEventIds.has(e.eventId))
 
   return (
-    <Card className="mb-5 border-amber-200/50 bg-gradient-to-r from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+    <Card className="mb-5 border-amber-200/30 bg-gradient-to-r from-amber-50/40 to-orange-50/20">
       <CardContent className="py-4 px-5">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">📰</span>
-            <h3 className="font-bold text-sm">Новости периода {currentPeriod}</h3>
-            <span className="text-[10px] bg-amber-200/70 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">
-              {activeEvents.length} {pluralEvents(activeEvents.length)}
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
+              <span className="text-sm">📰</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Новости периода {currentPeriod}</h3>
+              <span className="text-[10px] text-muted-foreground">
+                {activeEvents.length} {pluralEvents(activeEvents.length)}
+              </span>
+            </div>
           </div>
           {ongoingEvents.length > 0 && (
             <Button
@@ -149,12 +153,11 @@ export function NewsPanel({
               className="text-xs h-7"
               onClick={() => setExpanded(!expanded)}
             >
-              {expanded ? 'Скрыть' : `Все события (${activeEvents.length})`}
+              {expanded ? 'Скрыть' : `Все (${activeEvents.length})`}
             </Button>
           )}
         </div>
 
-        {/* Новые события — всегда показываем */}
         {newEvents.length > 0 && (
           <div className="space-y-2.5">
             {newEvents.map((event) => {
@@ -163,23 +166,25 @@ export function NewsPanel({
               return (
                 <div
                   key={event.eventId}
-                  className="p-3 rounded-xl bg-white/70 dark:bg-white/5 border border-amber-200/40"
+                  className={`p-3.5 rounded-xl bg-gradient-to-r ${cfg.color} border border-amber-200/30 backdrop-blur-sm`}
                 >
-                  <div className="flex items-start gap-2">
-                    <span className="text-base mt-0.5">{cfg.icon}</span>
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-lg mt-0.5">{cfg.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm">{event.title}</span>
-                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] text-muted-foreground bg-white/50 px-1.5 py-0.5 rounded-full">
                           {cfg.label}
                         </span>
-                        <span className="text-[10px] text-amber-600 font-medium">НОВОЕ</span>
+                        <span className="text-[10px] text-amber-600 font-bold bg-amber-100 px-1.5 py-0.5 rounded-full">
+                          НОВОЕ
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                         {event.description}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground/70">
                           ≈ {event.remainingPeriods} {pluralPeriods(event.remainingPeriods)}
                         </span>
                       </div>
@@ -192,10 +197,9 @@ export function NewsPanel({
           </div>
         )}
 
-        {/* Текущие события — по кнопке */}
         {expanded && ongoingEvents.length > 0 && (
-          <div className="space-y-2 mt-3 pt-3 border-t border-amber-200/40">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">
+          <div className="space-y-2 mt-3 pt-3 border-t border-amber-200/30">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
               Действующие события
             </p>
             {ongoingEvents.map((event) => {
@@ -204,14 +208,14 @@ export function NewsPanel({
               return (
                 <div
                   key={event.eventId}
-                  className="p-2.5 rounded-lg bg-white/50 dark:bg-white/5 border border-muted/40"
+                  className="p-3 rounded-xl bg-white/40 border border-border/30"
                 >
                   <div className="flex items-start gap-2">
                     <span className="text-sm mt-0.5">{cfg.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-xs">{event.title}</span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground/70">
                           ещё {event.remainingPeriods} пер.
                         </span>
                       </div>
@@ -224,7 +228,6 @@ export function NewsPanel({
           </div>
         )}
 
-        {/* Если нет новых, но есть текущие — показываем подсказку */}
         {newEvents.length === 0 && activeEvents.length > 0 && !expanded && (
           <p className="text-xs text-muted-foreground">
             Новых событий нет. {activeEvents.length} {pluralEvents(activeEvents.length)} продолжа

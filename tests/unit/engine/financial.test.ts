@@ -140,91 +140,82 @@ describe('calcPnL', () => {
   })
 })
 
-describe('calcCashAndLoans', () => {
-  it('cash = prevCash + netProfit - capex при отсутствии кредита', () => {
-    const result = calcCashAndLoans({
-      prevCash: 50000,
-      netProfit: 5000,
-      depreciation: 8000,
-      capex: 5000,
-      prevLoanBalance: 0,
-      prevCreditRating: 1.0,
-      equipment: 100000,
-    })
-    // cash = 50000 + 5000 + 8000 - 5000 = 58000
-    expect(result.newCash).toBeCloseTo(50000 + 5000 + 8000 - 5000, 5)
+describe('calcCashAndLoans (прямой метод из ТЗ)', () => {
+  const baseCashParams = {
+    prevCash: 50000,
+    revenue: 35000,
+    productionCost: 16000, // production × unitCost
+    marketing: 5000,
+    rd: 3000,
+    capex: 5000,
+    tax: 0,
+    interestExpense: 0,
+    holdingCost: 300,
+    spoilageCost: 100,
+    productionOverhead: 0,
+    prevLoanBalance: 0,
+    prevCreditRating: 1.0,
+    equipment: 100000,
+  }
+
+  it('cash = prevCash + revenue - totalOutflow (прямой метод)', () => {
+    const result = calcCashAndLoans(baseCashParams)
+    // totalOutflow = 16000+5000+3000+5000+0+0+300+100+0 = 29400
+    // cash = 50000 + 35000 - 29400 = 55600
+    expect(result.newCash).toBeCloseTo(50000 + 35000 - 29400, 5)
     expect(result.newLoanBalance).toBe(0)
     expect(result.newCreditRating).toBe(1.0)
   })
 
   it('автокредит: cash < 0 → выдаётся кредит', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 5000,
-      netProfit: -20000, // cash станет -15000
-      depreciation: 0,
-      capex: 0,
-      prevLoanBalance: 0,
-      prevCreditRating: 1.0,
-      equipment: 100000,
+      revenue: 0, // нет дохода
     })
-    // cash = 5000 - 20000 = -15000 < 0
-    // loanNeeded = 15000 + 5000 = 20000
-    // maxLoan = 100000 × 0.8 = 80000
-    // actualLoan = min(20000, 80000) = 20000
+    // totalOutflow = 29400, cash = 5000 + 0 - 29400 = -24400 < 0
     expect(result.newCash).toBeGreaterThanOrEqual(0)
     expect(result.newLoanBalance).toBeGreaterThan(0)
   })
 
   it('кредитный рейтинг ухудшается при взятии кредита', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 5000,
-      netProfit: -20000,
-      depreciation: 0,
-      capex: 0,
-      prevLoanBalance: 0,
-      prevCreditRating: 1.0,
-      equipment: 100000,
+      revenue: 0,
     })
     expect(result.newCreditRating).toBeGreaterThan(1.0)
   })
 
   it('кредитный рейтинг не превышает 2.0', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 5000,
-      netProfit: -100000,
-      depreciation: 0,
-      capex: 0,
-      prevLoanBalance: 50000,
+      revenue: 0,
       prevCreditRating: 1.9,
-      equipment: 100000,
+      prevLoanBalance: 50000,
     })
     expect(result.newCreditRating).toBeLessThanOrEqual(2.0)
   })
 
   it('автопогашение: cash > 20000 и loanBalance > 0 → погашение', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 30000,
-      netProfit: 10000, // cash = 40000 > REPAYMENT_THRESHOLD
-      depreciation: 0,
-      capex: 0,
+      revenue: 40000,
       prevLoanBalance: 10000,
       prevCreditRating: 1.2,
-      equipment: 100000,
     })
-    // cash = 40000 > 20000 → repayment
+    // cash = 30000 + 40000 - 29400 = 40600 > 20000 → repayment
     expect(result.newLoanBalance).toBeLessThan(10000)
   })
 
   it('погашение кредита улучшает creditRating', () => {
-    // Полное погашение: creditRating -= 0.2
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 100000,
-      netProfit: 0,
-      depreciation: 0,
-      capex: 0,
-      prevLoanBalance: 5000, // небольшой кредит
+      prevLoanBalance: 5000,
       prevCreditRating: 1.4,
-      equipment: 100000,
     })
     if (result.newLoanBalance === 0) {
       expect(result.newCreditRating).toBeLessThan(1.4)
@@ -234,38 +225,31 @@ describe('calcCashAndLoans', () => {
 
   it('creditRating не падает ниже 1.0', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 200000,
-      netProfit: 0,
-      depreciation: 0,
-      capex: 0,
       prevLoanBalance: 1000,
       prevCreditRating: 1.0,
-      equipment: 100000,
     })
     expect(result.newCreditRating).toBeGreaterThanOrEqual(1.0)
   })
 
   it('овердрафт: equipment≈0, нет залога → cash = -1000', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 1000,
-      netProfit: -20000,
-      depreciation: 0,
-      capex: 0,
-      prevLoanBalance: 0,
-      prevCreditRating: 1.0,
+      revenue: 0,
       equipment: 100, // очень мало залога
     })
-    // maxLoan = 100 × 0.8 = 80, loanNeeded = 19000 + 5000 = 24000
-    // actualLoan = min(24000, 80-0) = 80 < loanNeeded → овердрафт
+    // maxLoan = 100 × 0.8 = 80, loanNeeded >> 80 → овердрафт
     expect(result.newCash).toBe(-1000)
   })
 
   it('newCash и newLoanBalance — конечные числа', () => {
     const result = calcCashAndLoans({
+      ...baseCashParams,
       prevCash: 50000,
-      netProfit: -100000,
-      depreciation: 0,
-      capex: 10000,
+      revenue: 0,
+      productionCost: 100000,
       prevLoanBalance: 20000,
       prevCreditRating: 1.5,
       equipment: 80000,
