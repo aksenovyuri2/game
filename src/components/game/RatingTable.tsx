@@ -9,6 +9,8 @@ interface RatingTableProps {
   playerCompanyId: string | null
 }
 
+const RANK_BADGES = ['🥇', '🥈', '🥉']
+
 export function RatingTable({ results, companies, playerCompanyId }: RatingTableProps) {
   const sorted = [...results].sort((a, b) => b.mpi - a.mpi)
 
@@ -16,7 +18,7 @@ export function RatingTable({ results, companies, playerCompanyId }: RatingTable
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <span className="size-2 rounded-full bg-chart-3" />
+          <div className="size-2.5 rounded-full bg-gradient-to-r from-chart-3 to-amber-400" />
           Рейтинг компаний
         </CardTitle>
       </CardHeader>
@@ -24,7 +26,7 @@ export function RatingTable({ results, companies, playerCompanyId }: RatingTable
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/50">
+              <tr className="border-b bg-muted/30">
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">
                   #
                 </th>
@@ -50,33 +52,35 @@ export function RatingTable({ results, companies, playerCompanyId }: RatingTable
                 return (
                   <tr
                     key={r.companyId}
-                    className={`border-b last:border-0 transition-colors ${
-                      isBankrupt
-                        ? 'opacity-50'
-                        : isPlayer
-                          ? 'bg-primary/5 font-semibold'
-                          : 'hover:bg-muted/30'
+                    className={`border-b border-border/30 last:border-0 transition-colors duration-200 ${
+                      isBankrupt ? 'opacity-40' : isPlayer ? 'bg-primary/5' : 'hover:bg-muted/20'
                     }`}
                   >
                     <td className="px-4 py-3 text-muted-foreground">
-                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                      {idx < 3 ? RANK_BADGES[idx] : idx + 1}
                     </td>
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-1.5">
-                        {company?.name ?? r.companyId}
+                        <span className={isPlayer ? 'font-semibold' : ''}>
+                          {company?.name ?? r.companyId}
+                        </span>
                         {isPlayer && (
-                          <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">
                             ВЫ
                           </span>
                         )}
                         {isBankrupt && (
-                          <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-md">
                             БАНКРОТ
                           </span>
                         )}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">{formatMPI(r.mpi)}</td>
+                    <td
+                      className={`px-4 py-3 text-right font-mono ${isPlayer ? 'font-semibold text-gradient' : ''}`}
+                    >
+                      {formatMPI(r.mpi)}
+                    </td>
                     <td className="px-4 py-3 text-right">{formatPercent(r.marketShare)}</td>
                     <td
                       className={`px-4 py-3 text-right font-mono ${

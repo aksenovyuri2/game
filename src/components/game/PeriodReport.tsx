@@ -22,7 +22,9 @@ function Row({
     highlight === 'positive' ? 'text-emerald-600' : highlight === 'negative' ? 'text-red-500' : ''
   const fontCls = bold || highlight ? 'font-semibold' : ''
   return (
-    <div className="flex justify-between py-2 border-b border-dashed last:border-0 last:pb-0">
+    <div
+      className={`flex justify-between py-2.5 border-b border-dashed border-border/50 last:border-0 last:pb-0 ${bold ? 'bg-muted/20 -mx-1 px-1 rounded-md' : ''}`}
+    >
       <span className={`text-sm ${bold ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
         {label}
       </span>
@@ -31,11 +33,12 @@ function Row({
   )
 }
 
-function SectionHeader({ label }: { label: string }) {
+function SectionHeader({ label, icon }: { label: string; icon: string }) {
   return (
-    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 mt-1">
-      {label}
-    </p>
+    <div className="flex items-center gap-2 mb-1 mt-1">
+      <span className="text-xs">{icon}</span>
+      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">{label}</p>
+    </div>
   )
 }
 
@@ -44,34 +47,32 @@ export function PeriodReport({ result, companyName }: PeriodReportProps) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <span className="size-2 rounded-full bg-primary" />
+          <div className="size-2.5 rounded-full bg-gradient-to-r from-primary to-primary/70" />
           Отчёт: {companyName}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Продажи */}
         <div>
-          <SectionHeader label="Продажи" />
+          <SectionHeader label="Продажи" icon="📦" />
           <Row label="Продано единиц" value={`${formatUnits(result.unitsSold)} шт.`} />
           <Row label="Остаток на складе" value={`${formatUnits(result.endInventory)} шт.`} />
           <Row label="Доля рынка" value={formatPercent(result.marketShare)} bold />
         </div>
 
-        {/* Финансы */}
         <div>
-          <SectionHeader label="Финансовый результат (УДЕ)" />
+          <SectionHeader label="Финансовый результат (УДЕ)" icon="💹" />
           <Row label="Выручка" value={formatMoney(result.revenue)} />
           <Row
             label="Себестоимость"
-            value={`−${formatMoney(result.costOfGoodsSold ?? result.cogs ?? 0)}`}
+            value={`-${formatMoney(result.costOfGoodsSold ?? result.cogs ?? 0)}`}
           />
           <Row label="Валовая прибыль" value={formatMoney(result.grossProfit)} bold />
-          <Row label="Маркетинг" value={`−${formatMoney(result.marketingExpense ?? 0)}`} />
-          <Row label="НИОКР" value={`−${formatMoney(result.rdExpense ?? 0)}`} />
-          <Row label="Амортизация" value={`−${formatMoney(result.depreciation ?? 0)}`} />
+          <Row label="Маркетинг" value={`-${formatMoney(result.marketingExpense ?? 0)}`} />
+          <Row label="НИОКР" value={`-${formatMoney(result.rdExpense ?? 0)}`} />
+          <Row label="Амортизация" value={`-${formatMoney(result.depreciation ?? 0)}`} />
           <Row
             label="Складские расходы"
-            value={`−${formatMoney(result.holdingCost ?? result.storageCost ?? 0)}`}
+            value={`-${formatMoney(result.holdingCost ?? result.storageCost ?? 0)}`}
           />
           <Row
             label="Операционная прибыль"
@@ -79,7 +80,7 @@ export function PeriodReport({ result, companyName }: PeriodReportProps) {
             highlight={(result.operatingProfit ?? result.ebit ?? 0) >= 0 ? 'positive' : 'negative'}
             bold
           />
-          <Row label="Налог (20%)" value={`−${formatMoney(result.tax)}`} />
+          <Row label="Налог (20%)" value={`-${formatMoney(result.tax)}`} />
           <Row
             label="Чистая прибыль"
             value={`${result.netProfit >= 0 ? '+' : ''}${formatMoney(result.netProfit)}`}
@@ -88,9 +89,8 @@ export function PeriodReport({ result, companyName }: PeriodReportProps) {
           />
         </div>
 
-        {/* Баланс */}
         <div>
-          <SectionHeader label="Баланс (конец периода)" />
+          <SectionHeader label="Баланс (конец периода)" icon="🏦" />
           <Row label="Касса" value={`${formatMoney(result.newCash)} УДЕ`} bold />
           <Row label="Оборудование" value={`${formatMoney(result.newEquipment)} УДЕ`} />
           <Row

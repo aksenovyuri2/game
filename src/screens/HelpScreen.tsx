@@ -53,6 +53,14 @@ const MPI_FACTORS = [
   { name: 'Рост', weight: '10%', desc: 'Прибыльность текущего периода.' },
 ]
 
+const TIPS = [
+  'Следите за долей рынка — резкое снижение сигнализирует о проблемах с ценой или маркетингом.',
+  'Инвестируйте в оборудование для снижения себестоимости.',
+  'Не забывайте о складских расходах — перепроизводство стоит денег.',
+  'На уровне «Мастер» у ИИ нет случайности — он использует оптимальные стратегии.',
+  'Нераспределённая прибыль — главный показатель MPI, держите компанию прибыльной.',
+]
+
 export default function HelpScreen() {
   const resetOnboarding = useOnboardingStore((s) => s.resetOnboarding)
   const [resetDone, setResetDone] = useState(false)
@@ -65,7 +73,7 @@ export default function HelpScreen() {
 
   return (
     <PageLayout title="Справка" showBack>
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold">Как играть</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -75,7 +83,12 @@ export default function HelpScreen() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Об игре</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-sm">
+                🎮
+              </span>
+              Об игре
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm leading-relaxed">
@@ -83,7 +96,7 @@ export default function HelpScreen() {
               <strong className="text-foreground">Эко-Ручку</strong>, и конкурируете с
               ИИ-оппонентами на едином рынке. В каждом периоде (квартале) все компании одновременно
               принимают 5 решений, после чего система рассчитывает результаты. Побеждает тот, кто
-              наберёт наивысший <strong className="text-foreground">MPI</strong> по итогам всех
+              наберёт наивысший <strong className="text-gradient">MPI</strong> по итогам всех
               периодов.
             </p>
           </CardContent>
@@ -91,11 +104,19 @@ export default function HelpScreen() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">5 решений игрока</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-sm">
+                📋
+              </span>
+              5 решений игрока
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {PARAMS.map((p) => (
-              <div key={p.name} className="flex gap-3 items-start p-3 rounded-xl bg-secondary/50">
+              <div
+                key={p.name}
+                className="flex gap-3 items-start p-3.5 rounded-xl bg-muted/30 border border-border/30"
+              >
                 <span className="text-xl shrink-0">{p.icon}</span>
                 <div>
                   <p className="font-semibold text-sm">{p.name}</p>
@@ -108,7 +129,12 @@ export default function HelpScreen() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Индекс эффективности (MPI)</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-sm">
+                📊
+              </span>
+              Индекс эффективности (MPI)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
@@ -117,7 +143,7 @@ export default function HelpScreen() {
             <div className="space-y-3">
               {MPI_FACTORS.map((f) => (
                 <div key={f.name} className="flex gap-3 items-start">
-                  <span className="text-xs font-bold font-mono bg-primary/10 text-primary px-2.5 py-1 rounded-lg shrink-0 w-14 text-center">
+                  <span className="text-xs font-bold font-mono bg-gradient-to-r from-primary/15 to-primary/5 text-primary px-2.5 py-1 rounded-lg shrink-0 w-14 text-center">
                     {f.weight}
                   </span>
                   <div>
@@ -132,34 +158,35 @@ export default function HelpScreen() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Советы</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-sm">
+                💡
+              </span>
+              Советы
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2.5 text-sm text-muted-foreground">
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0">→</span>
-                Следите за долей рынка — резкое снижение сигнализирует о проблемах с ценой или
-                маркетингом.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0">→</span>
-                Инвестируйте в оборудование для снижения себестоимости.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0">→</span>
-                Не забывайте о складских расходах — перепроизводство стоит денег.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0">→</span>
-                На уровне «Мастер» у ИИ нет случайности — он использует оптимальные стратегии.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0">→</span>
-                Нераспределённая прибыль — главный показатель MPI, держите компанию прибыльной.
-              </li>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              {TIPS.map((tip, i) => (
+                <li key={i} className="flex gap-3 items-start">
+                  <span className="size-5 rounded-md bg-primary/8 flex items-center justify-center shrink-0 mt-0.5">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path
+                        d="M2 5H8M8 5L5.5 2.5M8 5L5.5 7.5"
+                        stroke="hsl(250 85% 60%)"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="leading-relaxed">{tip}</span>
+                </li>
+              ))}
             </ul>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="py-4 flex items-center justify-between">
             <div>

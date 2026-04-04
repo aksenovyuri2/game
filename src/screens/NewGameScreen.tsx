@@ -67,8 +67,8 @@ const STARTING_CASH: {
 const SCENARIOS: { value: MarketScenario; label: string; desc: string; icon: string }[] = [
   { value: 'stable', label: 'Стабильный', desc: 'Ровный спрос.', icon: '📊' },
   { value: 'growing', label: 'Растущий', desc: 'Рынок +3%/период.', icon: '📈' },
-  { value: 'crisis', label: 'Кризисный', desc: 'Спрос −5%/период.', icon: '📉' },
-  { value: 'random', label: 'Случайный', desc: 'Колебания ±15%.', icon: '🎲' },
+  { value: 'crisis', label: 'Кризисный', desc: 'Спрос -5%/период.', icon: '📉' },
+  { value: 'random', label: 'Случайный', desc: 'Колебания +-15%.', icon: '🎲' },
 ]
 
 export default function NewGameScreen() {
@@ -91,16 +91,21 @@ export default function NewGameScreen() {
 
   return (
     <PageLayout title="Новая игра" showBack>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold">Настройка игры</h1>
           <p className="text-muted-foreground text-sm mt-1">Выберите параметры новой игры</p>
         </div>
 
-        {/* Название компании */}
+        {/* Company name */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Название вашей компании</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-xs">
+                🏢
+              </span>
+              Название вашей компании
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Input
@@ -113,10 +118,15 @@ export default function NewGameScreen() {
           </CardContent>
         </Card>
 
-        {/* Сложность */}
+        {/* Difficulty */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Уровень сложности ИИ</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-xs">
+                🎮
+              </span>
+              Уровень сложности ИИ
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
             {DIFFICULTIES.map((d) => (
@@ -125,22 +135,27 @@ export default function NewGameScreen() {
                 onClick={() => setParams((p) => ({ ...p, difficulty: d.value }))}
                 className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   params.difficulty === d.value
-                    ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-                    : 'border-transparent bg-secondary/50 hover:bg-secondary hover:border-border'
+                    ? 'border-primary/50 bg-primary/5 shadow-md shadow-primary/10 scale-[1.02]'
+                    : 'border-transparent bg-secondary/40 hover:bg-secondary/70 hover:border-border/50'
                 }`}
               >
-                <span className="text-xl">{d.icon}</span>
-                <p className="font-semibold text-sm mt-1.5">{d.label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{d.desc}</p>
+                <span className="text-2xl">{d.icon}</span>
+                <p className="font-semibold text-sm mt-2">{d.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{d.desc}</p>
               </button>
             ))}
           </CardContent>
         </Card>
 
-        {/* Сценарий */}
+        {/* Scenario */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Рыночный сценарий</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-xs">
+                📊
+              </span>
+              Рыночный сценарий
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
             {SCENARIOS.map((s) => (
@@ -149,22 +164,27 @@ export default function NewGameScreen() {
                 onClick={() => setParams((p) => ({ ...p, scenario: s.value }))}
                 className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   params.scenario === s.value
-                    ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-                    : 'border-transparent bg-secondary/50 hover:bg-secondary hover:border-border'
+                    ? 'border-primary/50 bg-primary/5 shadow-md shadow-primary/10 scale-[1.02]'
+                    : 'border-transparent bg-secondary/40 hover:bg-secondary/70 hover:border-border/50'
                 }`}
               >
-                <span className="text-xl">{s.icon}</span>
-                <p className="font-semibold text-sm mt-1.5">{s.label}</p>
+                <span className="text-2xl">{s.icon}</span>
+                <p className="font-semibold text-sm mt-2">{s.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
               </button>
             ))}
           </CardContent>
         </Card>
 
-        {/* Стартовый капитал */}
+        {/* Starting cash */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Стартовый капитал</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-xs">
+                💵
+              </span>
+              Стартовый капитал
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3">
             {STARTING_CASH.map((s) => (
@@ -173,29 +193,34 @@ export default function NewGameScreen() {
                 onClick={() => setParams((p) => ({ ...p, startingCash: s.value }))}
                 className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   params.startingCash === s.value
-                    ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-                    : 'border-transparent bg-secondary/50 hover:bg-secondary hover:border-border'
+                    ? 'border-primary/50 bg-primary/5 shadow-md shadow-primary/10 scale-[1.02]'
+                    : 'border-transparent bg-secondary/40 hover:bg-secondary/70 hover:border-border/50'
                 }`}
               >
-                <span className="text-xl">{s.icon}</span>
-                <p className="font-semibold text-sm mt-1.5">{s.label}</p>
-                <p className="text-xs font-bold text-primary">{s.amount} УДЕ</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
+                <span className="text-2xl">{s.icon}</span>
+                <p className="font-semibold text-sm mt-2">{s.label}</p>
+                <p className="text-xs font-bold text-gradient mt-0.5">{s.amount} УДЕ</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{s.desc}</p>
               </button>
             ))}
           </CardContent>
         </Card>
 
-        {/* Параметры */}
+        {/* Parameters */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Параметры игры</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-xs">
+                ⚙️
+              </span>
+              Параметры игры
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <div className="flex justify-between items-baseline mb-2">
+              <div className="flex justify-between items-baseline mb-3">
                 <label className="text-sm font-medium">Количество периодов</label>
-                <span className="text-sm font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                <span className="text-sm font-bold text-primary bg-primary/8 px-3 py-1 rounded-lg">
                   {params.totalPeriods}
                 </span>
               </div>
@@ -207,15 +232,15 @@ export default function NewGameScreen() {
                 onChange={(e) => setParams((p) => ({ ...p, totalPeriods: +e.target.value }))}
                 className="w-full"
               />
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
                 <span>8 (короткая)</span>
                 <span>24 (длинная)</span>
               </div>
             </div>
             <div>
-              <div className="flex justify-between items-baseline mb-2">
+              <div className="flex justify-between items-baseline mb-3">
                 <label className="text-sm font-medium">ИИ-конкурентов</label>
-                <span className="text-sm font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                <span className="text-sm font-bold text-primary bg-primary/8 px-3 py-1 rounded-lg">
                   {params.aiCount}
                 </span>
               </div>
@@ -227,7 +252,7 @@ export default function NewGameScreen() {
                 onChange={(e) => setParams((p) => ({ ...p, aiCount: +e.target.value }))}
                 className="w-full"
               />
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
                 <span>2</span>
                 <span>7</span>
               </div>
@@ -235,8 +260,21 @@ export default function NewGameScreen() {
           </CardContent>
         </Card>
 
-        <Button size="lg" className="w-full h-14 text-base rounded-xl" onClick={handleStart}>
-          Начать игру →
+        <Button
+          size="lg"
+          className="w-full h-14 text-base rounded-2xl shadow-lg shadow-primary/20"
+          onClick={handleStart}
+        >
+          Начать игру
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="ml-1">
+            <path
+              d="M4 10H16M16 10L11 5M16 10L11 15"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </Button>
       </div>
     </PageLayout>
