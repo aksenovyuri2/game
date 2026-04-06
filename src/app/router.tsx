@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
-export type Screen = 'home' | 'new-game' | 'game' | 'results' | 'help'
+export type Screen = 'home' | 'new-game' | 'game' | 'results' | 'help' | 'stats'
 
 interface NavigationContextValue {
   screen: Screen

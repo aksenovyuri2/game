@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigation } from '@/app/router'
 import { useGameStore } from '@/store/gameStore'
 import { useSavesStore } from '@/store/savesStore'
@@ -9,10 +9,16 @@ import { PeriodReport } from '@/components/game/PeriodReport'
 import { RatingTable } from '@/components/game/RatingTable'
 import { HistoryChart } from '@/components/charts/HistoryChart'
 import { NewsPanel } from '@/components/game/NewsPanel'
+import { MarketResearch } from '@/components/game/MarketResearch'
+import { CompetitorIntel } from '@/components/game/CompetitorIntel'
+import { AdvisorPanel } from '@/components/game/AdvisorPanel'
+import { BreakthroughNotice } from '@/components/game/BreakthroughNotice'
 import { BubbleTip } from '@/components/ui/bubble-tip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatMoney, formatMPI } from '@/lib/format'
+import { generateAdvisorTips } from '@/engine/advisor'
+import { checkBreakthroughs } from '@/engine/breakthroughs'
 import type { Decisions } from '@/engine/types'
 
 type ChartMetric = 'mpi' | 'netProfit' | 'marketShare' | 'revenue'
@@ -71,6 +77,32 @@ export default function GameScreen() {
 
   const player = companies.find((c) => c.id === playerCompanyId)
   const playerLastResult = lastPeriodResult?.results.find((r) => r.companyId === playerCompanyId)
+
+  // Advisor tips
+  const advisorTips = useMemo(() => {
+    if (!playerLastResult || !player || !lastPeriodResult) return []
+    const prevPeriodResult =
+      periodHistory.length >= 2 ? periodHistory[periodHistory.length - 2] : undefined
+    const prevPlayerResult = prevPeriodResult?.results.find((r) => r.companyId === playerCompanyId)
+    return generateAdvisorTips(playerLastResult, player, lastPeriodResult.results, prevPlayerResult)
+  }, [playerLastResult, player, lastPeriodResult, periodHistory, playerCompanyId])
+
+  // R&D Breakthroughs
+  const breakthroughs = useMemo(() => {
+    if (!playerLastResult || !player) return []
+    const prevRd =
+      periodHistory.length >= 2
+        ? (periodHistory[periodHistory.length - 2]?.results.find(
+            (r) => r.companyId === playerCompanyId
+          )?.newRdAccumulated ?? 0)
+        : 0
+    const achievedIds = periodHistory.slice(0, -1).flatMap((p) => {
+      const r = p.results.find((r) => r.companyId === playerCompanyId)
+      if (!r) return []
+      return checkBreakthroughs(0, r.newRdAccumulated, []).map((b) => b.id)
+    })
+    return checkBreakthroughs(prevRd, playerLastResult.newRdAccumulated, achievedIds)
+  }, [playerLastResult, player, periodHistory, playerCompanyId])
 
   useEffect(() => {
     if (phase === 'deciding' && currentPeriod === 1 && !isDismissed('welcome')) {
@@ -259,6 +291,15 @@ export default function GameScreen() {
             newEvents={newEventsThisPeriod}
             currentPeriod={currentPeriod}
           />
+          {config && (
+            <MarketResearch
+              activeEvents={activeEvents}
+              scenario={config.scenario}
+              lastPeriodResult={lastPeriodResult}
+              currentPeriod={currentPeriod}
+              totalPeriods={config.totalPeriods}
+            />
+          )}
           <div className="grid lg:grid-cols-2 gap-5">
             <BubbleTip
               id="decisions-form"
@@ -330,8 +371,10 @@ export default function GameScreen() {
               </CardContent>
             </Card>
           )}
+          <BreakthroughNotice breakthroughs={breakthroughs} />
           {lastPeriodResult && (
             <div className="space-y-5">
+              {advisorTips.length > 0 && <AdvisorPanel tips={advisorTips} />}
               <div className="grid lg:grid-cols-2 gap-5">
                 {playerLastResult && (
                   <BubbleTip
@@ -359,6 +402,13 @@ export default function GameScreen() {
                       playerCompanyId={playerCompanyId}
                     />
                   </BubbleTip>
+                  {config && (
+                    <CompetitorIntel
+                      companies={lastPeriodResult.updatedCompanyStates}
+                      playerCompanyId={playerCompanyId}
+                      difficulty={config.difficulty}
+                    />
+                  )}
                   <Button
                     size="lg"
                     className="w-full h-12 rounded-xl shadow-md shadow-primary/15"

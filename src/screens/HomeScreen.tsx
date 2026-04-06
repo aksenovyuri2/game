@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigation } from '@/app/router'
 import { useGameStore } from '@/store/gameStore'
 import { useSavesStore } from '@/store/savesStore'
+import { useAchievementsStore } from '@/store/achievementsStore'
+import { ACHIEVEMENTS } from '@/engine/achievements'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,6 +20,7 @@ export default function HomeScreen() {
   const { navigate } = useNavigation()
   const { phase, resetGame } = useGameStore()
   const { saves, loadSaves, deleteSave } = useSavesStore()
+  const unlockedCount = useAchievementsStore((s) => s.unlockedIds.length)
   const [confirmNewGame, setConfirmNewGame] = useState(false)
 
   useEffect(() => {
@@ -142,6 +145,19 @@ export default function HomeScreen() {
             onClick={() => navigate('help')}
           >
             Как играть
+          </Button>
+          <Button
+            size="lg"
+            variant="ghost"
+            className="w-full text-base h-12 text-muted-foreground"
+            onClick={() => navigate('stats')}
+          >
+            📊 Статистика
+            {unlockedCount > 0 && (
+              <span className="ml-2 text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {unlockedCount}/{ACHIEVEMENTS.length}
+              </span>
+            )}
           </Button>
         </div>
 
