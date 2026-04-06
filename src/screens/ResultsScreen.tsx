@@ -1,11 +1,14 @@
 import { useNavigation } from '@/app/router'
 import { useGameStore } from '@/store/gameStore'
+import { useAchievementsStore } from '@/store/achievementsStore'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { HistoryChart } from '@/components/charts/HistoryChart'
+import { StrategyComparison } from '@/components/game/StrategyComparison'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatMoney, formatMPI, formatPercent } from '@/lib/format'
-import { useState } from 'react'
+import { analyzeGame } from '@/engine/analytics'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { SimulationPeriodResult } from '@/engine/types'
 
 type ChartMetric = 'mpi' | 'netProfit' | 'marketShare' | 'revenue'
@@ -26,9 +29,62 @@ export default function ResultsScreen() {
   const { navigate } = useNavigation()
   const { companies, playerCompanyId, periodHistory, config, gameOverReason, resetGame } =
     useGameStore()
+  const recordGameEnd = useAchievementsStore((s) => s.recordGameEnd)
   const [chartMetric, setChartMetric] = useState<ChartMetric>('mpi')
+  const achievementRecorded = useRef(false)
 
   const last = periodHistory[periodHistory.length - 1]
+
+  // Analyze game
+  const analysis = useMemo(() => {
+    if (!last || !playerCompanyId) return null
+    return analyzeGame(periodHistory, playerCompanyId)
+  }, [periodHistory, playerCompanyId, last])
+
+  // Record achievement data once when results screen mounts
+  useEffect(() => {
+    if (achievementRecorded.current || !last || !config || !playerCompanyId) return
+    achievementRecorded.current = true
+
+    const sortedRes = [...last.results].sort((a, b) => b.mpi - a.mpi)
+    const pResult = last.results.find((r) => r.companyId === playerCompanyId)
+    const pRank = sortedRes.findIndex((r) => r.companyId === playerCompanyId) + 1
+    const pWon = sortedRes[0]?.companyId === playerCompanyId
+
+    let maxMS = 0
+    let maxCash = 0
+    let totalProfitInGame = 0
+    let wasLast = false
+    for (const period of periodHistory) {
+      const pr = period.results.find((r) => r.companyId === playerCompanyId)
+      if (pr) {
+        maxMS = Math.max(maxMS, pr.marketShare)
+        maxCash = Math.max(maxCash, pr.newCash)
+        totalProfitInGame += pr.netProfit
+      }
+      const sorted = [...period.results].sort((a, b) => b.mpi - a.mpi)
+      if (sorted[sorted.length - 1]?.companyId === playerCompanyId) {
+        wasLast = true
+      }
+    }
+
+    const playerCompany = companies.find((c) => c.id === playerCompanyId)
+
+    recordGameEnd({
+      won: pWon,
+      rank: pRank,
+      finalMPI: pResult?.mpi ?? 0,
+      totalPeriods: periodHistory.length,
+      difficulty: config.difficulty,
+      scenario: config.scenario,
+      isBankruptcy: gameOverReason === 'bankruptcy',
+      maxMarketShareInGame: maxMS,
+      maxCashInGame: maxCash,
+      totalProfitInGame,
+      wasLastAtAnyPoint: wasLast,
+      startingCash: playerCompany?.cash ?? 50000,
+    })
+  }, [last, config, playerCompanyId, periodHistory, companies, gameOverReason, recordGameEnd])
 
   if (!last || !config) {
     return (
@@ -209,6 +265,37 @@ export default function ResultsScreen() {
           playerCompanyId={playerCompanyId}
           metric={chartMetric}
         />
+
+        {/* Game Insights */}
+        {analysis && analysis.insights.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="size-2.5 rounded-full bg-gradient-to-r from-chart-1 to-chart-2" />
+                Ключевые моменты
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {analysis.insights.map((insight, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 p-3 rounded-xl border border-border/20 bg-muted/10"
+                >
+                  <span className="text-xl shrink-0">{insight.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{insight.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Strategy Comparison */}
+        {analysis && analysis.profiles.length > 0 && playerCompanyId && (
+          <StrategyComparison profiles={analysis.profiles} playerCompanyId={playerCompanyId} />
+        )}
 
         {/* Actions */}
         <div className="flex gap-3">
